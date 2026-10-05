@@ -22,11 +22,18 @@ function readSnapshot() {
   }
 }
 
+/** Converte linhas do banco para o formato do Balloon (leitura ao vivo). */
+function liveBalloon(row, cfg) {
+  // Na leitura, o estado RODANDO vem do banco em tempo real
+  // (rowToBalloon zera p/ o painel não retomar sozinho no reload).
+  return { ...rowToBalloon(row, cfg), isRunning: row.is_running === true };
+}
+
 /** Converte linhas do banco para o formato do Balloon. */
 function rowsToBalloons(rows) {
   return BALLOON_CONFIG.map((cfg) => {
     const row = rows.find((r) => r.balloon_id === cfg.id);
-    return row ? rowToBalloon(row, cfg) : null;
+    return row ? liveBalloon(row, cfg) : null;
   }).filter(Boolean);
 }
 
@@ -107,10 +114,10 @@ const PublicView = ({ token }) => {
           if (!row) return;
           const cfg = BALLOON_CONFIG.find((c) => c.id === row.balloon_id);
           if (!cfg) return;
-          const updated = rowToBalloon(row, cfg);
+          const updated = liveBalloon(row, cfg);
           setBalloons((prev) => {
             if (!prev) return prev;
-            return prev.map((b) => (b.id === cfg.id ? { ...updated, isRunning: row.is_running } : b));
+            return prev.map((b) => (b.id === cfg.id ? updated : b));
           });
           setUpdatedAt(new Date());
           setLive(true);
