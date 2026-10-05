@@ -7,35 +7,7 @@
     <meta name="description" content="Simulador de Balões Industriais - Supervisório de Envasamento Triângulo" />
     <meta name="theme-color" content="#0a0f1a" />
     <title>Simulador de Balões - Triângulo</title>
-    <script>
-      // DIAGNÓSTICO TEMPORÁRIO — mostra na tela qualquer erro de boot
-      window.__bootErrors = [];
-      function __showBootBanner(msg) {
-        var d = document.createElement('div');
-        d.id = '__boot-banner';
-        d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:12px;font:12px/1.5 monospace;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto';
-        d.textContent = msg;
-        document.body.appendChild(d);
-      }
-      window.addEventListener('error', function (e) {
-        var msg = 'ERRO JS: ' + (e.message || 'desconhecido') + '\nARQUIVO: ' + (e.filename || '?') + ':' + (e.lineno || '?');
-        window.__bootErrors.push(msg);
-        __showBootBanner(msg);
-      }, true);
-      window.addEventListener('unhandledrejection', function (e) {
-        var msg = 'PROMISE REJEITADA: ' + ((e.reason && (e.reason.message || e.reason)) || '?');
-        window.__bootErrors.push(msg);
-        __showBootBanner(msg);
-      });
-      setTimeout(function () {
-        var root = document.getElementById('root');
-        var empty = !root || root.children.length === 0;
-        if (empty && window.__bootErrors.length === 0) {
-          __showBootBanner('SEM ERRO CAPTURADO, MAS #root VAZIO após 8s.\nURL: ' + location.href + '\nUA: ' + navigator.userAgent + '\nlocalStorage keys: ' + Object.keys(localStorage).join(','));
-        }
-      }, 8000);
-    </script>
-    <script type="module" crossorigin src="./assets/index-DRSMxlP2.js"></script>
+    <script type="module" crossorigin src="./assets/index-DbzUPK3A.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-MczgTaJF.css">
   </head>
   <body>
