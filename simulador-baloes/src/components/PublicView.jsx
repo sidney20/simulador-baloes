@@ -244,6 +244,7 @@ const PublicView = ({ token }) => {
                   formulation={b.formRecipe ? { recipe: b.formRecipe, running: !!b.formRunning, startAt: b.formStartAt ?? null, accumMs: b.formAccumMs || 0, done: !!b.formDone } : null}
                   refColor={pubColorOf(b)}
                   refProductName={pubNameOf(b)}
+                  formTargetLiters={b.formTargetLiters}
                 />
               </motion.div>
             ))}

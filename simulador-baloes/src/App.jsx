@@ -70,6 +70,7 @@ const getInitialBalloons = () => BALLOON_CONFIG.map(b => ({
   formAccumMs: 0,
   formDone: false,
   formProductId: null,
+  formTargetLiters: 0,
 }));
 
 const App = () => {
@@ -134,8 +135,9 @@ const App = () => {
           formRunning: s.formRunning === true,
           formStartAt: typeof s.formStartAt === 'number' ? s.formStartAt : null,
           formAccumMs: Math.max(0, Number(s.formAccumMs) || 0),
-          formDone: s.formDone === true,
+          formDone: false, // concluída vira litros no balão (ver conclusão)
           formProductId: PRODUCTS.some(p => p.id === s.formProductId && !p.isEmpty) ? s.formProductId : null,
+          formTargetLiters: Math.max(0, Math.min(cfg.capacity, Number(s.formTargetLiters) || 0)),
         };
       });
     };
@@ -507,6 +509,19 @@ const App = () => {
     });
   };
 
+  const handleFormTarget = (id, liters) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon || balloon.formRunning) return;
+    const v = Number(liters);
+    if (!Number.isFinite(v)) return;
+    updateBalloon(id, {
+      formTargetLiters: Math.max(0, Math.min(balloon.capacity, v)),
+      formAccumMs: 0,
+      formStartAt: null,
+      formDone: false,
+    });
+  };
+
   const handleFormRecipe = (id, recipe) => {
     const balloon = balloons.find(b => b.id === id);
     if (!balloon || balloon.formRunning) return;
@@ -529,6 +544,10 @@ const App = () => {
     }
     if (!balloon.formRecipe) {
       showNotification('Selecione o tipo de receita (normal ou grande)', 'warning');
+      return;
+    }
+    if (!(balloon.formTargetLiters > 0)) {
+      showNotification('Informe a quantidade da receita em litros', 'warning');
       return;
     }
     if (balloon.currentVolume > 0) {
@@ -680,11 +699,15 @@ const App = () => {
   }, []);
 
   // Conclusão da FORMULAÇÃO: a cada 1s verifica quem atingiu 100%.
-  // Trava o cronômetro no tempo total, para a animação e mantém cheio.
+  // Transfere a quantidade da receita p/ o balão (com o produto formulado),
+  // limpa a sessão e libera o envase. O já consumido não existe aqui:
+  // a formulação só ENCHE a partir do zero.
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
       const prev = balloonsRef.current;
+      const b3 = prev.find((x) => x.id === 3);
+      const refId = PRODUCTS.find((p) => p.id === b3?.productId && !p.isEmpty)?.id || null;
       const done = prev.filter((b) => {
         if (!b.formRunning || !b.formRecipe || b.formDone) return false;
         const total = recipeDurationMs(b.formRecipe);
@@ -698,13 +721,39 @@ const App = () => {
           const total = recipeDurationMs(b.formRecipe);
           const elapsed = (b.formAccumMs || 0) + (b.formStartAt ? now - b.formStartAt : 0);
           if (elapsed < total) return b;
-          return { ...b, formRunning: false, formStartAt: null, formAccumMs: total, formDone: true };
+          const target = Math.max(0, Math.min(b.capacity, Number(b.formTargetLiters) || 0));
+          const prod = PRODUCTS.find((p) => p.id === b.formProductId && !p.isEmpty)
+            || PRODUCTS.find((p) => p.id === refId && !p.isEmpty)
+            || PRODUCTS[0];
+          return {
+            ...b,
+            currentVolume: target,
+            initialVolume: target,
+            productId: prod.id,
+            sessionAccum: 0,
+            sessionStart: null,
+            expectedAccum: 0,
+            estimatedFinishAt: null,
+            pausedAt: null,
+            totalPausedMs: 0,
+            formRunning: false,
+            formStartAt: null,
+            formAccumMs: 0,
+            formDone: false,
+          };
         })
       );
       done.forEach((b) => {
         liveRefs.current.playAlertSound();
+        const target = Math.max(0, Math.min(b.capacity, Number(b.formTargetLiters) || 0));
+        const prod = PRODUCTS.find((p) => p.id === b.formProductId && !p.isEmpty)
+          || PRODUCTS.find((p) => p.id === refId && !p.isEmpty)
+          || PRODUCTS[0];
         const label = b.formRecipe === 'grande' ? '02:50:00' : '01:50:00';
-        liveRefs.current.showNotification(`✅ FORMULAÇÃO CONCLUÍDA no ${b.name} — tempo total ${label}`, 'success');
+        liveRefs.current.showNotification(
+          `✅ FORMULAÇÃO CONCLUÍDA no ${b.name} (${label}) — ${target.toLocaleString('pt-BR')} L de ${prod.name} no balão, liberado p/ envase`,
+          'success'
+        );
       });
     }, 1000);
     return () => clearInterval(timer);
@@ -927,6 +976,7 @@ const App = () => {
                 formulation={{ recipe: balloon.formRecipe, running: balloon.formRunning, startAt: balloon.formStartAt, accumMs: balloon.formAccumMs, done: balloon.formDone }}
                 refColor={formProductOf(balloon)?.color || '#94a3b8'}
                 refProductName={formProductOf(balloon)?.name || '—'}
+                formTargetLiters={balloon.formTargetLiters}
               />
               <ControlPanel
                 id={balloon.id}
@@ -967,6 +1017,8 @@ const App = () => {
                 refProductId={refProductId}
                 formProductId={balloon.formProductId}
                 onFormProduct={(p) => handleFormProduct(balloon.id, p)}
+                formTargetLiters={balloon.formTargetLiters}
+                onFormTarget={(v) => handleFormTarget(balloon.id, v)}
                 onFormRecipe={(r) => handleFormRecipe(balloon.id, r)}
                 onFormStart={() => handleFormStart(balloon.id)}
                 onFormToggle={() => handleFormToggle(balloon.id)}

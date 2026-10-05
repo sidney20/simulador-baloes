@@ -86,6 +86,8 @@ const ControlPanel = ({
   refProductId,
   formProductId,
   onFormProduct,
+  formTargetLiters,
+  onFormTarget,
   onFormRecipe,
   onFormStart,
   onFormToggle,
@@ -100,6 +102,25 @@ const ControlPanel = ({
   const cipRef = useRef(null);
   const washHRef = useRef(null);
   const washMRef = useRef(null);
+  const targetRef = useRef(null);
+  const [targetText, setTargetText] = useState(() => String(Math.round(Number(formTargetLiters) || 0) || ''));
+
+  useEffect(() => {
+    if (document.activeElement !== targetRef.current) {
+      const t = Math.round(Number(formTargetLiters) || 0);
+      setTargetText(t > 0 ? String(t) : '');
+    }
+  }, [formTargetLiters]);
+
+  const commitTarget = () => {
+    const n = parseInt(targetText, 10);
+    if (!Number.isFinite(n) || n < 1) {
+      const t = Math.round(Number(formTargetLiters) || 0);
+      setTargetText(t > 0 ? String(t) : ''); // inválido: volta ao atual
+      return;
+    }
+    onFormTarget(Math.min(capacity, n)); // App limita à capacidade
+  };
   const [volText, setVolText] = useState(() => String(Math.round(currentVolume)));
   const [cipText, setCipText] = useState(() => String(cipHours ?? ''));
   // Duração da lavagem em horas + minutos (texto livre, confirma no blur/Enter)
@@ -573,6 +594,24 @@ const ControlPanel = ({
             <p className="text-[11px] text-slate-500 mb-2">
               Padrão: {refProduct && !refProduct.isEmpty ? `${refProduct.name} (Balão 03)` : 'nenhum no Balão 03'}
             </p>
+
+            <p className="text-xs text-slate-400 mb-1.5">Quantidade da receita (litros):</p>
+            <div className="relative mb-2">
+              <input
+                ref={targetRef}
+                type="number"
+                min="1"
+                max={capacity}
+                value={targetText}
+                onChange={(e) => setTargetText(e.target.value)}
+                onBlur={commitTarget}
+                onKeyDown={blurOnEnter}
+                className="input-field no-spinner pr-12 text-right font-mono"
+                placeholder={`ex: ${Math.round(capacity / 2)}`}
+                disabled={locked || !formIdle}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">L</span>
+            </div>
 
             <p className="text-xs text-slate-400 mb-1.5">Tipo de receita (define o tempo):</p>
             <div className="grid grid-cols-1 gap-2 mb-2">

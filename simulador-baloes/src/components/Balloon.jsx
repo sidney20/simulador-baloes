@@ -44,6 +44,7 @@ const Balloon = ({
   formulation,
   refColor,
   refProductName,
+  formTargetLiters,
 }) => {
   const product = PRODUCTS.find(p => p.id === productId) || PRODUCTS[0];
   const percentage = isEmpty ? 0 : Math.max(0, Math.min(100, (currentVolume / capacity) * 100));
@@ -84,10 +85,18 @@ const Balloon = ({
   const formPct = formActive ? formProgress(formulation, nowTick) : 0;
   const formElapsed = formActive ? formElapsedMs(formulation, nowTick) : 0;
   const formTotal = formActive ? recipeDurationMs(formulation.recipe) : 0;
-  const formTop = INNER.bottom - INNER_H * formPct;
+  // Nível proporcional à meta em litros (enche até a quantidade da receita)
+  const formTarget = Math.max(0, Number(formTargetLiters) || 0);
+  const formFrac = formActive && capacity > 0
+    ? Math.max(0, Math.min(1, (formPct * formTarget) / capacity))
+    : 0;
+  // Quantidade da receita que ainda falta formular (vai SUMINDO ao vivo)
+  const formRemaining = Math.max(0, formTarget * (1 - formPct));
+  const formTop = INNER.bottom - INNER_H * formFrac;
   const formHeight = Math.max(0, INNER.bottom - formTop);
-  const formSurfaceBoxPct = 100 - formPct * 100; // aprox. na caixa do overlay
+  const formSurfaceBoxPct = 100 - formFrac * 100; // aprox. na caixa do overlay
   const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
+  const fmtL1 = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   // Líquido do envase some quando a formulação assume o visual
   const hasLiquid = !formActive && hasLiquidEnvase;
 
@@ -315,7 +324,7 @@ const Balloon = ({
             </g>
           )}
 
-          {/* FORMULAÇÃO: fill pelo progresso (cor do produto do Balão 03) */}
+          {/* FORMULAÇÃO: fill proporcional à meta (cor do produto escolhido) */}
           {formActive && formHeight > 0 && (
             <g clipPath={`url(#innerClip${id})`}>
               <rect
@@ -589,6 +598,14 @@ const Balloon = ({
                 🧪 {(RECIPES.find((r) => r.id === formulation.recipe) || {}).name || 'Formulação'} · {refProductName}
               </p>
               <div className="mt-1.5 space-y-1 text-[11px]">
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Meta da receita:</span>
+                  <span className="font-mono font-bold text-white">{fmtL1(formTarget)} L</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Restam formular:</span>
+                  <span className="font-mono font-bold text-amber-300">{fmtL1(formRemaining)} L</span>
+                </div>
                 <div className="flex justify-between gap-2 text-slate-400">
                   <span>Tempo previsto:</span>
                   <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>

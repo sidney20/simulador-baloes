@@ -30,6 +30,7 @@ create table if not exists public.tanks (
   cip_wash_minutes double precision not null default 5,
   form_recipe text,
   form_product_id text,
+  form_target_liters double precision not null default 0,
   form_running boolean not null default false,
   form_start_at bigint,
   form_accum_ms bigint not null default 0,

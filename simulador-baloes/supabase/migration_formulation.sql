@@ -5,3 +5,4 @@ alter table public.tanks add column if not exists form_running boolean not null 
 alter table public.tanks add column if not exists form_start_at bigint;
 alter table public.tanks add column if not exists form_accum_ms bigint not null default 0;
 alter table public.tanks add column if not exists form_done boolean not null default false;
+alter table public.tanks add column if not exists form_target_liters double precision not null default 0;
