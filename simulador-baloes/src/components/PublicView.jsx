@@ -74,8 +74,12 @@ const PublicView = ({ token }) => {
     };
 
     load();
-    // Polling de segurança a cada 2s (SÓ leitura)
-    const timer = setInterval(load, 2000);
+    // Polling de segurança a cada 1s (SÓ leitura; pausa com aba oculta).
+    // O Realtime cobre o ao vivo; o polling é rede de segurança.
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      load();
+    }, 1000);
     const onStorage = (e) => {
       if (!e.key || e.key === STORAGE_KEY) load();
     };

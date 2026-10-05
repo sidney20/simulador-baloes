@@ -168,7 +168,7 @@ const App = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Nuvem: throttle de ~2s (envio contínuo, inclusive rodando).
+  // Nuvem: throttle de ~1s (envio contínuo, inclusive rodando).
   // Debounce puro nunca dispararia com o envase ativo (muda a cada 1s).
   const lastPush = useRef(0);
   useEffect(() => {
@@ -177,11 +177,11 @@ const App = () => {
       lastPush.current = Date.now();
       pushRemoteBalloons(balloonsRef.current).catch(() => {});
     };
-    if (Date.now() - lastPush.current >= 2000) {
+    if (Date.now() - lastPush.current >= 1000) {
       doPush();
     } else {
       if (pushTimer.current) clearTimeout(pushTimer.current);
-      pushTimer.current = setTimeout(doPush, 2000 - (Date.now() - lastPush.current));
+      pushTimer.current = setTimeout(doPush, 1000 - (Date.now() - lastPush.current));
     }
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
