@@ -37,6 +37,11 @@ export function balloonToRow(b, ownerId) {
     cip_washing: !!b.cipWashing,
     cip_wash_ends_at: isoOrNull(b.cipWashEndsAt),
     cip_wash_minutes: b.cipWashMinutes,
+    form_recipe: b.formRecipe || null,
+    form_running: !!b.formRunning,
+    form_start_at: typeof b.formStartAt === 'number' ? b.formStartAt : null,
+    form_accum_ms: b.formAccumMs || 0,
+    form_done: !!b.formDone,
     updated_at: new Date().toISOString(),
   };
 }
@@ -71,6 +76,11 @@ export function rowToBalloon(r, cfg) {
     cipWashing: r.cip_washing === true,
     cipWashEndsAt: msOrNull(r.cip_wash_ends_at),
     cipWashMinutes: num(r.cip_wash_minutes, 5) > 0 ? num(r.cip_wash_minutes, 5) : 5,
+    formRecipe: r.form_recipe === 'grande' ? 'grande' : r.form_recipe === 'normal' ? 'normal' : null,
+    formRunning: r.form_running === true,
+    formStartAt: typeof r.form_start_at === 'number' ? r.form_start_at : null,
+    formAccumMs: Math.max(0, num(r.form_accum_ms)),
+    formDone: r.form_done === true,
   };
 }
 

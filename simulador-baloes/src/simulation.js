@@ -204,6 +204,44 @@ export function formatClockMS(ms) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** "01:50:00" (HH:MM:SS) a partir de milissegundos. Só exibição. */
+export function formatHMS(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${p2(h)}:${p2(m)}:${p2(ss)}`;
+}
+
+/** Duração da receita em ms (normal = 110min, grande = 170min). */
+export function recipeDurationMs(recipe) {
+  const minutes = recipe === 'grande' ? 170 : recipe === 'normal' ? 110 : 0;
+  return minutes * 60 * 1000;
+}
+
+/** Tempo decorrido da formulação em ms (pausa congela, retomar continua). */
+export function formElapsedMs(form, nowMs = Date.now()) {
+  if (!form) return 0;
+  const accum = Number(form.accumMs) || 0;
+  const live = form.running && form.startAt ? nowMs - form.startAt : 0;
+  return Math.max(0, accum + live);
+}
+
+/** Progresso 0..1 = decorrido / total (controla o nível visual). */
+export function formProgress(form, nowMs = Date.now()) {
+  if (!form || !form.recipe) return 0;
+  const total = recipeDurationMs(form.recipe);
+  if (!(total > 0)) return 0;
+  return Math.max(0, Math.min(1, formElapsedMs(form, nowMs) / total));
+}
+
+/** true se existe sessão de formulação (iniciada, pausada ou concluída). */
+export function hasFormSession(form) {
+  if (!form || !form.recipe) return false;
+  return !!(form.running || form.done || (Number(form.accumMs) || 0) > 0 || form.startAt);
+}
+
 /**
  * Validação obrigatória: simula 1 hora em ticks de 1 segundo usando a MESMA
  * função calculateConsumption do app, num tanque virtual (capacity 40000,

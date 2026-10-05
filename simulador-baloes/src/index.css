@@ -284,6 +284,44 @@
 }
 @keyframes emcipPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
+/* ============ FORMULAÇÃO DO PRODUTO (cano + fluxo descendo) ============ */
+/* Cano de alimentação no topo, conectado ao balão */
+.form-pipe {
+  position: absolute;
+  left: calc(50% - 7px);
+  top: -4%;
+  width: 14px;
+  height: 34%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #3f3f46, #a1a1aa 25%, #ffffff 50%, #a1a1aa 75%, #3f3f46);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+/* Fio de produto descendo do cano (cor via style inline, animação desce) */
+.form-stream {
+  position: absolute;
+  border-radius: 5px;
+  animation: formFlow 0.7s linear infinite;
+}
+@keyframes formFlow {
+  from { background-position-y: 0; }
+  to { background-position-y: 36px; }
+}
+/* Selo de progresso da formulação */
+.form-tag {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  font-size: 15px;
+  font-family: ui-monospace, Consolas, monospace;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+  animation: emcipPulse 2.6s ease-in-out infinite;
+}
+
 /* Inputs numéricos sem setinhas nativas (o sufixo h/L fica isolado) */
 input.no-spinner::-webkit-outer-spin-button,
 input.no-spinner::-webkit-inner-spin-button {

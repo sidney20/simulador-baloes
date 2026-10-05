@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Factory, Eye, AlertTriangle } from 'lucide-react';
 import Balloon from './Balloon';
 import { validateShareToken, ownerOfToken, fetchOwnerBalloons } from '../share';
-import { STORAGE_KEY, BALLOON_CONFIG } from '../constants';
+import { STORAGE_KEY, BALLOON_CONFIG, PRODUCTS } from '../constants';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { rowToBalloon } from '../sync';
 
@@ -47,6 +47,12 @@ const PublicView = ({ token }) => {
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [live, setLive] = useState(false);
   const ownerRef = useRef(null);
+
+  // Cor de referência da formulação = produto atual do Balão 03
+  const refB3 = (balloons || []).find((b) => b.id === 3);
+  const refProdPub = PRODUCTS.find((p) => p.id === refB3?.productId && !p.isEmpty);
+  const refColor = refProdPub?.color || '#94a3b8';
+  const refProductName = refProdPub?.name || '—';
 
   useEffect(() => {
     document.title = 'Acompanhar Balões — Somente leitura';
@@ -234,6 +240,9 @@ const PublicView = ({ token }) => {
                   cipDoneAt={b.cipDoneAt ?? null}
                   cipWashing={b.cipWashing}
                   cipWashEndsAt={b.cipWashEndsAt ?? null}
+                  formulation={b.formRecipe ? { recipe: b.formRecipe, running: !!b.formRunning, startAt: b.formStartAt ?? null, accumMs: b.formAccumMs || 0, done: !!b.formDone } : null}
+                  refColor={refColor}
+                  refProductName={refProductName}
                 />
               </motion.div>
             ))}

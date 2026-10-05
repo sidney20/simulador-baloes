@@ -28,6 +28,11 @@ create table if not exists public.tanks (
   cip_washing boolean not null default false,
   cip_wash_ends_at timestamptz,
   cip_wash_minutes double precision not null default 5,
+  form_recipe text,
+  form_running boolean not null default false,
+  form_start_at bigint,
+  form_accum_ms bigint not null default 0,
+  form_done boolean not null default false,
   updated_at timestamptz not null default now(),
   unique (owner_id, balloon_id)
 );

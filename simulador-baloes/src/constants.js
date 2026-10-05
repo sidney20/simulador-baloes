@@ -66,3 +66,12 @@ export const DEFAULT_CIP_HOURS = 72;
 
 // Lavagem CIP: duração padrão em minutos (balão vazio, spray ball 360°)
 export const DEFAULT_CIP_WASH_MINUTES = 5;
+
+// FORMULAÇÃO DO PRODUTO: durações das receitas em SEGUNDOS (central).
+// normal = 1h50min = 110min · grande = 2h50min = 170min
+export const RECEITA_NORMAL_DURATION = 110 * 60;
+export const RECEITA_GRANDE_DURATION = 170 * 60;
+export const RECIPES = [
+  { id: 'normal', name: 'Receita normal', minutes: 110, label: 'Receita normal — 1h50min' },
+  { id: 'grande', name: 'Receita grande', minutes: 170, label: 'Receita grande — 2h50min' },
+];

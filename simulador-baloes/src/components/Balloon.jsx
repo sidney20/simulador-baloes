@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PRODUCTS, LOW_LEVEL_THRESHOLD } from '../constants';
-import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf } from '../simulation';
+import { PRODUCTS, LOW_LEVEL_THRESHOLD, RECIPES } from '../constants';
+import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS } from '../simulation';
 import SprayBall360 from './SprayBall360';
 
 // Geometria interna do vidro (coordenadas do viewBox 0 0 250 520)
@@ -41,10 +41,14 @@ const Balloon = ({
   cipDoneAt,
   cipWashing,
   cipWashEndsAt,
+  formulation,
+  refColor,
+  refProductName,
 }) => {
   const product = PRODUCTS.find(p => p.id === productId) || PRODUCTS[0];
   const percentage = isEmpty ? 0 : Math.max(0, Math.min(100, (currentVolume / capacity) * 100));
-  const hasLiquid = !product.isEmpty && percentage > 0;
+  const hasLiquidEnvase = !product.isEmpty && percentage > 0;
+  const hasLiquid = !formActive && hasLiquidEnvase;
 
   // Topo do líquido dentro do vidro (100% = topo interno, 0% = fundo interno)
   const liquidTop = INNER.bottom - (INNER_H * percentage) / 100;
@@ -74,6 +78,17 @@ const Balloon = ({
 
   // Alerta de nível baixo: giroflex vermelho com 300 L ou menos (e não vazio)
   const isLow = !isEmpty && currentVolume <= LOW_LEVEL_THRESHOLD;
+
+  // FORMULAÇÃO: sessão ativa assume o visual (fill por progresso + cano).
+  // Não mexe no volume do envase — é representação visual do preparo.
+  const formActive = hasFormSession(formulation);
+  const formPct = formActive ? formProgress(formulation, nowTick) : 0;
+  const formElapsed = formActive ? formElapsedMs(formulation, nowTick) : 0;
+  const formTotal = formActive ? recipeDurationMs(formulation.recipe) : 0;
+  const formTop = INNER.bottom - INNER_H * formPct;
+  const formHeight = Math.max(0, INNER.bottom - formTop);
+  const formSurfaceBoxPct = 100 - formPct * 100; // aprox. na caixa do overlay
+  const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
 
   return (
     <div className={`relative flex flex-col items-center gap-3 sm:gap-4 glass-panel p-4 sm:p-6 min-w-0 w-full flex-1 transition-shadow duration-300 ${isLow ? 'ring-2 ring-red-500/80 shadow-[0_0_45px_rgba(239,68,68,0.35)]' : ''} ${cipWashing ? 'ring-2 ring-sky-400/80 shadow-[0_0_45px_rgba(56,189,248,0.35)]' : ''}`}>
@@ -177,8 +192,8 @@ const Balloon = ({
             strokeWidth="1"
           />
 
-          {/* VAZIO = TODO PRATA (metálico, nunca branco) */}
-          {isEmpty && (
+          {/* VAZIO = TODO PRATA (metálico, nunca branco) — some na formulação */}
+          {!formActive && isEmpty && (
             <g clipPath={`url(#innerClip${id})`}>
               <rect
                 x={INNER.left}
@@ -299,6 +314,75 @@ const Balloon = ({
             </g>
           )}
 
+          {/* FORMULAÇÃO: fill pelo progresso (cor do produto do Balão 03) */}
+          {formActive && formHeight > 0 && (
+            <g clipPath={`url(#innerClip${id})`}>
+              <rect
+                x={INNER.left}
+                y={formTop}
+                width={INNER_W}
+                height={formHeight}
+                fill={refColor}
+                style={{ transition: 'fill 0.6s ease, y 1s linear, height 1s linear' }}
+              />
+              <rect
+                x={INNER.left}
+                y={formTop}
+                width={INNER_W}
+                height={formHeight}
+                fill={`url(#shade${id})`}
+                style={{ transition: 'y 1s linear, height 1s linear' }}
+              />
+              <rect
+                x={INNER.left}
+                y={formTop}
+                width={INNER_W}
+                height={formHeight}
+                fill={`url(#edge${id})`}
+                style={{ transition: 'y 1s linear, height 1s linear' }}
+              />
+              <rect
+                x={INNER.left}
+                y={formTop}
+                width={INNER_W}
+                height={Math.min(30, formHeight)}
+                fill={`url(#topGlow${id})`}
+                style={{ transition: 'y 1s linear, height 1s linear' }}
+              />
+              <rect
+                x={INNER.left + 9}
+                y={formTop}
+                width={10}
+                height={formHeight}
+                rx={5}
+                fill="#ffffff"
+                opacity={0.14}
+                style={{ transition: 'y 1s linear, height 1s linear' }}
+              />
+              <g className="animate-liquid-wave">
+                <ellipse
+                  cx={80}
+                  cy={formTop}
+                  rx={38}
+                  ry={4.5}
+                  fill="#ffffff"
+                  opacity={0.25}
+                />
+              </g>
+              {BUBBLES.map((b, i) => (
+                <circle
+                  key={`form-bubble-${i}`}
+                  cx={b.cx}
+                  cy={INNER.bottom - 24}
+                  r={b.r}
+                  fill="rgba(255,255,255,0.45)"
+                  className="animate-bubble-rise"
+                  style={{ animationDelay: b.delay, animationDuration: b.dur }}
+                />
+              ))}
+            </g>
+          )}
+
           {/* Frente do vidro: brilho + reflexos por cima do líquido */}
           <path d={GLASS_PATH} fill={`url(#sheen${id})`} />
           <path
@@ -352,6 +436,30 @@ const Balloon = ({
         </svg>
         {/* Lavagem CIP: spray ball 360° sobre o balão vazio */}
         {cipWashing && <SprayBall360 />}
+        {/* Formulação: cano no topo + produto descendo (cor do Balão 03) */}
+        {formActive && (
+          <div className="spray360" aria-hidden="true">
+            <div className="form-pipe" />
+            {formulation.running && !formulation.done && formStreamH > 2 && (
+              <div
+                className="form-stream"
+                style={{
+                  left: 'calc(50% - 5px)',
+                  top: '30%',
+                  width: 10,
+                  height: `${formStreamH}%`,
+                  background: `repeating-linear-gradient(to bottom, ${refColor} 0 12px, ${refColor}66 12px 20px)`,
+                  boxShadow: `0 0 10px ${refColor}`,
+                }}
+              />
+            )}
+            {!formulation.done && (
+              <div className="form-tag">
+                <span>🧪 {Math.floor(formPct * 100)}%</span>
+              </div>
+            )}
+          </div>
+        )}
         </div>
       </div>
 
@@ -461,6 +569,49 @@ const Balloon = ({
           <p className="text-slate-400 text-xs">
             🛁 CIP pendente — faça a lavagem CIP para liberar o INICIAR
           </p>
+        </div>
+      )}
+
+      {/* Cronômetros da formulação (ao vivo; também aparece na leitura) */}
+      {formActive && (
+        <div className="w-full px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/25 tabular-nums">
+          {formulation.done ? (
+            <div className="text-center">
+              <p className="text-emerald-300 text-sm font-bold">✅ FORMULAÇÃO CONCLUÍDA</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Tempo total: <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-center text-violet-200 text-sm font-bold">
+                🧪 {(RECIPES.find((r) => r.id === formulation.recipe) || {}).name || 'Formulação'} · {refProductName}
+              </p>
+              <div className="mt-1.5 space-y-1 text-[11px]">
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Tempo previsto:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Decorrido:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formElapsed)}</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Restante:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formTotal - formElapsed)}</span>
+                </div>
+              </div>
+              <div className="mt-1.5 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-1000 ease-linear"
+                  style={{ width: `${formPct * 100}%` }}
+                />
+              </div>
+              <p className="text-center text-xs font-mono font-bold text-white mt-1">
+                {Math.floor(formPct * 100)}%
+              </p>
+            </>
+          )}
         </div>
       )}
 

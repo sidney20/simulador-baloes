@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { PRODUCTS, MACHINES } from '../constants';
-import { flowRatePerHourForIds, machineFlowRate, percentOf, machineMaxFlow, isCipValid, formatBrasiliaDateTime, formatClockMS } from '../simulation';
-import { Volume2, Truck, RotateCcw, Square, Play, Pause, AlertTriangle, Sparkles, Check } from 'lucide-react';
+import { PRODUCTS, MACHINES, RECIPES } from '../constants';
+import { flowRatePerHourForIds, machineFlowRate, percentOf, machineMaxFlow, isCipValid, formatBrasiliaDateTime, formatClockMS, hasFormSession, formElapsedMs } from '../simulation';
+import { Volume2, Truck, RotateCcw, Square, Play, Pause, AlertTriangle, Sparkles, Check, FlaskConical, X } from 'lucide-react';
 
 // Exibe % com vírgula decimal (só exibição)
 const fmtPct = (v) => String(v).replace('.', ',');
@@ -78,6 +78,17 @@ const ControlPanel = ({
   cipWashEndsAt,
   onStartCipWash,
   onCancelCipWash,
+  formRecipe,
+  formRunning,
+  formStartAt,
+  formAccumMs,
+  formDone,
+  refProductId,
+  onFormRecipe,
+  onFormStart,
+  onFormToggle,
+  onFormRestart,
+  onFormClear,
 }) => {
   const product = PRODUCTS.find(p => p.id === productId) || PRODUCTS[0];
 
@@ -165,11 +176,17 @@ const ControlPanel = ({
   };
 
   const locked = isRunning || cipWashing; // envase rodando ou lavagem em curso
+  // Formulação (só balões 01/02): sessão = receita iniciada, pausada ou concluída
+  const form = { recipe: formRecipe, running: formRunning, startAt: formStartAt, accumMs: formAccumMs, done: formDone };
+  const formSession = hasFormSession(form);
+  const formIdle = !formSession; // nunca iniciada (ou limpa)
+  const refProduct = PRODUCTS.find((p) => p.id === refProductId);
+  const volumeLocked = locked || formSession; // sem digitar litros com formulação ativa
   const activeIds = Array.isArray(machineIds) ? machineIds : [];
   const pctOf = (mid) => percentOf(machineFlow, mid);
   const flowRate = flowRatePerHourForIds(activeIds, machineFlow); // total do balão em L/h
   const perMachineRate = (mid) => machineFlowRate(mid, machineFlow); // cada máquina em L/h
-  const canStart = !isEmpty && currentVolume > 0 && machines > 0 && !cipWashing && flowRate > 0 && isCipValid(cipDoneAt, cipHours);
+  const canStart = !isEmpty && currentVolume > 0 && machines > 0 && !cipWashing && !formSession && flowRate > 0 && isCipValid(cipDoneAt, cipHours);
   const cipOk = isCipValid(cipDoneAt, cipHours);
   // Máquinas e % podem mudar COM o envase rodando (ETA recalcula na hora);
   // o resto trava durante envase/lavagem.
@@ -268,7 +285,7 @@ const ControlPanel = ({
               onKeyDown={blurOnEnter}
               className="input-field no-spinner pr-12 text-right font-mono text-lg"
               placeholder="0"
-              disabled={locked}
+              disabled={volumeLocked}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">
               L
@@ -279,7 +296,7 @@ const ControlPanel = ({
               <button
                 key={p}
                 onClick={() => handleQuickFill(p)}
-                disabled={locked}
+                disabled={volumeLocked}
                 className="flex-1 px-3 py-2 text-xs font-medium rounded-xl transition-all duration-200
                   bg-slate-800/50 hover:bg-slate-700/50 text-slate-300
                   border border-slate-600/50 hover:border-slate-500
@@ -523,6 +540,92 @@ const ControlPanel = ({
           )}
         </div>
 
+        {[1, 2].includes(id) && (
+          <div className="pt-2 border-t border-slate-700/30">
+            <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-violet-400" />
+              🧪 FORMULAÇÃO DO PRODUTO
+            </label>
+
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 mb-2">
+              <span
+                className="w-4 h-4 rounded-full border border-white/30 shrink-0"
+                style={{ background: refProduct && !refProduct.isEmpty ? refProduct.color : 'transparent' }}
+              />
+              <span className="text-xs text-slate-400">Referência (Balão 03):</span>
+              <span className="text-xs font-bold text-white ml-auto">
+                {refProduct && !refProduct.isEmpty ? refProduct.name : 'sem produto'}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-1.5">Tipo de receita (define o tempo):</p>
+            <div className="grid grid-cols-1 gap-2 mb-2">
+              {RECIPES.map((r) => {
+                const selected = formRecipe === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onFormRecipe(r.id)}
+                    disabled={locked || formRunning}
+                    className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-2
+                      disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]
+                      ${selected
+                        ? 'bg-violet-600/30 border-violet-400/70 text-white'
+                        : 'bg-slate-800/50 border-slate-600/50 text-slate-300 hover:border-slate-500'}`}
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 ${selected ? 'border-violet-300 bg-violet-400' : 'border-slate-500'}`} />
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {formIdle ? (
+              <button
+                onClick={onFormStart}
+                disabled={locked || isRunning}
+                className="btn-primary w-full flex items-center justify-center gap-2 max-sm:px-3 max-sm:text-sm"
+              >
+                <FlaskConical className="w-4 h-4 shrink-0" />
+                INICIAR FORMULAÇÃO
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={onFormToggle}
+                  disabled={locked || formDone}
+                  className="btn-secondary flex items-center justify-center gap-2 max-sm:px-3 max-sm:text-sm"
+                >
+                  {formRunning ? <Pause className="w-4 h-4 shrink-0" /> : <Play className="w-4 h-4 shrink-0" />}
+                  {formRunning ? 'PAUSAR' : 'RETOMAR'}
+                </button>
+                <button
+                  onClick={onFormRestart}
+                  disabled={locked}
+                  className="btn-secondary flex items-center justify-center gap-2 max-sm:px-3 max-sm:text-sm"
+                >
+                  <RotateCcw className="w-4 h-4 shrink-0" />
+                  REINICIAR
+                </button>
+                <button
+                  onClick={onFormClear}
+                  disabled={locked}
+                  className="btn-danger col-span-2 flex items-center justify-center gap-2 max-sm:px-3 max-sm:text-sm"
+                >
+                  <X className="w-4 h-4 shrink-0" />
+                  NOVA FORMULAÇÃO (LIMPAR)
+                </button>
+              </div>
+            )}
+            {!formIdle && !isEmpty && (
+              <p className="text-[11px] text-slate-500 mt-1 text-center">
+                Formulação ativa — finalize ou limpe para voltar ao envase
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-slate-700/30">
           <button
             onClick={onPlay}
@@ -594,6 +697,15 @@ const ControlPanel = ({
             animate={{ opacity: 1, scale: 1 }}
           >
             🛁 CIP vencido ou pendente — faça a lavagem CIP para liberar o INICIAR
+          </motion.p>
+        )}
+        {formSession && !isRunning && (
+          <motion.p
+            className="text-center text-violet-300 text-sm p-3 bg-violet-500/10 border border-violet-500/25 rounded-xl"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            🧪 Formulação ativa — conclua ou limpe (NOVA FORMULAÇÃO) para liberar o envase
           </motion.p>
         )}
       </div>

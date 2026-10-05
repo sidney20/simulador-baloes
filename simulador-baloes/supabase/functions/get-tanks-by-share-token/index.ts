@@ -42,7 +42,7 @@ serve(async (req) => {
   // 2) Busca os 3 tanques do dono — APENAS campos de leitura
   const { data: tanks, error: tanksError } = await supabase
     .from('tanks')
-    .select('balloon_id, name, capacity, current_level, initial_level, product_id, machine_ids, machine_flow, is_running, estimated_finish_at, cip_hours, cip_done_at, cip_washing, cip_wash_ends_at, cip_wash_minutes, updated_at')
+    .select('balloon_id, name, capacity, current_level, initial_level, product_id, machine_ids, machine_flow, is_running, estimated_finish_at, cip_hours, cip_done_at, cip_washing, cip_wash_ends_at, cip_wash_minutes, form_recipe, form_running, form_start_at, form_accum_ms, form_done, updated_at')
     .eq('owner_id', link.created_by)
     .order('balloon_id');
 

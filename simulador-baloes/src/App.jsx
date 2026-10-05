@@ -17,7 +17,7 @@ import ControlPanel from './components/ControlPanel';
 import Dashboard from './components/Dashboard';
 import ShareModal from './components/ShareModal';
 import PublicView from './components/PublicView';
-import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap } from './simulation';
+import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession } from './simulation';
 import { isSupabaseEnabled } from './supabaseClient';
 import { fetchRemoteBalloons, pushRemoteBalloons } from './sync';
 import { 
@@ -62,6 +62,12 @@ const getInitialBalloons = () => BALLOON_CONFIG.map(b => ({
   cipWashing: false,
   cipWashEndsAt: null,
   cipWashMinutes: DEFAULT_CIP_WASH_MINUTES,
+  // FORMULAÇÃO DO PRODUTO (só balões 01/02): receita + cronômetro próprio
+  formRecipe: null,
+  formRunning: false,
+  formStartAt: null,
+  formAccumMs: 0,
+  formDone: false,
 }));
 
 const App = () => {
@@ -122,6 +128,11 @@ const App = () => {
           cipWashing: s.cipWashing === true,
           cipWashEndsAt: typeof s.cipWashEndsAt === 'number' ? s.cipWashEndsAt : null,
           cipWashMinutes: Number(s.cipWashMinutes) > 0 ? Number(s.cipWashMinutes) : DEFAULT_CIP_WASH_MINUTES,
+          formRecipe: s.formRecipe === 'grande' ? 'grande' : s.formRecipe === 'normal' ? 'normal' : null,
+          formRunning: s.formRunning === true,
+          formStartAt: typeof s.formStartAt === 'number' ? s.formStartAt : null,
+          formAccumMs: Math.max(0, Number(s.formAccumMs) || 0),
+          formDone: s.formDone === true,
         };
       });
     };
@@ -228,6 +239,10 @@ const App = () => {
     const balloon = balloons.find(b => b.id === id);
     if (balloon?.cipWashing) {
       showNotification('Lavagem CIP em andamento — aguarde concluir', 'warning');
+      return;
+    }
+    if (hasFormSession({ recipe: balloon?.formRecipe, running: balloon?.formRunning, startAt: balloon?.formStartAt, accumMs: balloon?.formAccumMs, done: balloon?.formDone })) {
+      showNotification('Formulação ativa — conclua ou limpe (NOVA FORMULAÇÃO) para envasar', 'warning');
       return;
     }
     if (!balloon || balloon.currentVolume <= 0 || balloon.productId === 'vazio') {
@@ -463,11 +478,101 @@ const App = () => {
     showNotification(`Lavagem CIP interrompida no ${balloon?.name || 'Balão'}`, 'info');
   };
 
+  // ---------- FORMULAÇÃO DO PRODUTO (balões 01/02) ----------
+  // Cor de referência: produto configurado no Balão 03 (sem nova tabela).
+  const formRefProduct = () => {
+    const b3 = balloons.find(b => b.id === 3);
+    return PRODUCTS.find(p => p.id === b3?.productId && !p.isEmpty) || null;
+  };
+
+  const handleFormRecipe = (id, recipe) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon || balloon.formRunning) return;
+    // Trocar receita reinicia a contagem do zero com o novo tempo
+    updateBalloon(id, {
+      formRecipe: recipe,
+      formRunning: false,
+      formStartAt: null,
+      formAccumMs: 0,
+      formDone: false,
+    });
+  };
+
+  const handleFormStart = (id) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon || balloon.isRunning || balloon.cipWashing) return;
+    if (hasFormSession({ recipe: balloon.formRecipe, running: balloon.formRunning, startAt: balloon.formStartAt, accumMs: balloon.formAccumMs, done: balloon.formDone })) {
+      showNotification('Formulação já iniciada — use PAUSAR/RETOMAR', 'warning');
+      return;
+    }
+    if (!balloon.formRecipe) {
+      showNotification('Selecione o tipo de receita (normal ou grande)', 'warning');
+      return;
+    }
+    if (balloon.currentVolume > 0) {
+      showNotification('Esvazie o balão para iniciar a formulação', 'warning');
+      return;
+    }
+    if (!formRefProduct()) {
+      showNotification('Defina um produto no Balão 03 como referência de cor', 'warning');
+      return;
+    }
+    updateBalloon(id, {
+      formRunning: true,
+      formStartAt: Date.now(),
+      formAccumMs: 0,
+      formDone: false,
+    });
+    showNotification(`🧪 Formulação iniciada no ${balloon.name}`, 'success');
+  };
+
+  const handleFormToggle = (id) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon || balloon.formDone) return;
+    const now = Date.now();
+    if (balloon.formRunning) {
+      // Pausa: congela cronômetro, animação e nível
+      updateBalloon(id, {
+        formRunning: false,
+        formAccumMs: (balloon.formAccumMs || 0) + (balloon.formStartAt ? now - balloon.formStartAt : 0),
+        formStartAt: null,
+      });
+      showNotification(`Formulação pausada no ${balloon.name}`, 'info');
+    } else {
+      // Retoma exatamente de onde parou
+      updateBalloon(id, { formRunning: true, formStartAt: now });
+      showNotification(`Formulação retomada no ${balloon.name}`, 'success');
+    }
+  };
+
+  const handleFormRestart = (id) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon) return;
+    updateBalloon(id, {
+      formAccumMs: 0,
+      formStartAt: balloon.formRunning ? Date.now() : null,
+      formDone: false,
+    });
+    showNotification(`Formulação reiniciada no ${balloon.name}`, 'info');
+  };
+
+  const handleFormClear = (id) => {
+    const balloon = balloons.find(b => b.id === id);
+    updateBalloon(id, {
+      formRecipe: null,
+      formRunning: false,
+      formStartAt: null,
+      formAccumMs: 0,
+      formDone: false,
+    });
+    showNotification(`Formulação limpa no ${balloon?.name || 'Balão'} — envase liberado`, 'info');
+  };
+
   const handleGlobalPlay = () => {
     let started = false;
     const now = Date.now();
     setBalloons(prev => prev.map(b => {
-      if (b.currentVolume > 0 && b.productId !== 'vazio' && machineCountOf(b) > 0 && !b.isRunning && !b.cipWashing && isCipValid(b.cipDoneAt, b.cipHours, now) && flowRatePerHourForIds(b.machineIds, b.machineFlow) > 0) {
+      if (b.currentVolume > 0 && b.productId !== 'vazio' && machineCountOf(b) > 0 && !b.isRunning && !b.cipWashing && !hasFormSession({ recipe: b.formRecipe, running: b.formRunning, startAt: b.formStartAt, accumMs: b.formAccumMs, done: b.formDone }) && isCipValid(b.cipDoneAt, b.cipHours, now) && flowRatePerHourForIds(b.machineIds, b.machineFlow) > 0) {
         started = true;
         const freshSession = !b.sessionStart && !(b.sessionAccum > 0);
         return {
@@ -546,6 +651,38 @@ const App = () => {
           `🛁 CIP concluído no ${b.name} — válido por ${b.cipHours}h`,
           'success'
         );
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Conclusão da FORMULAÇÃO: a cada 1s verifica quem atingiu 100%.
+  // Trava o cronômetro no tempo total, para a animação e mantém cheio.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const prev = balloonsRef.current;
+      const done = prev.filter((b) => {
+        if (!b.formRunning || !b.formRecipe || b.formDone) return false;
+        const total = recipeDurationMs(b.formRecipe);
+        const elapsed = (b.formAccumMs || 0) + (b.formStartAt ? now - b.formStartAt : 0);
+        return elapsed >= total;
+      });
+      if (done.length === 0) return;
+      setBalloons((cur) =>
+        cur.map((b) => {
+          if (!b.formRunning || !b.formRecipe || b.formDone) return b;
+          const total = recipeDurationMs(b.formRecipe);
+          const elapsed = (b.formAccumMs || 0) + (b.formStartAt ? now - b.formStartAt : 0);
+          if (elapsed < total) return b;
+          return { ...b, formRunning: false, formStartAt: null, formAccumMs: total, formDone: true };
+        })
+      );
+      done.forEach((b) => {
+        liveRefs.current.playAlertSound();
+        const label = b.formRecipe === 'grande' ? '02:50:00' : '01:50:00';
+        liveRefs.current.showNotification(`✅ FORMULAÇÃO CONCLUÍDA no ${b.name} — tempo total ${label}`, 'success');
       });
     }, 1000);
     return () => clearInterval(timer);
@@ -662,6 +799,10 @@ const App = () => {
     .filter(b => b.isRunning)
     .reduce((sum, b) => sum + flowRatePerHourForIds(b.machineIds, b.machineFlow), 0);
   const emptyCount = balloons.filter(b => b.currentVolume === 0 || b.productId === 'vazio').length;
+  // Cor de referência da formulação = produto atual do Balão 03
+  const refProd = formRefProduct();
+  const refColor = refProd?.color || '#94a3b8';
+  const refProductName = refProd?.name || '—';
   const runningCount = balloons.filter(b => b.isRunning).length;
 
   // Página pública: SÓ leitura, sem nenhum controle operacional
@@ -763,6 +904,9 @@ const App = () => {
                 cipDoneAt={balloon.cipDoneAt}
                 cipWashing={balloon.cipWashing}
                 cipWashEndsAt={balloon.cipWashEndsAt}
+                formulation={{ recipe: balloon.formRecipe, running: balloon.formRunning, startAt: balloon.formStartAt, accumMs: balloon.formAccumMs, done: balloon.formDone }}
+                refColor={refColor}
+                refProductName={refProductName}
               />
               <ControlPanel
                 id={balloon.id}
@@ -795,6 +939,17 @@ const App = () => {
                 cipWashEndsAt={balloon.cipWashEndsAt}
                 onStartCipWash={() => handleStartCipWash(balloon.id)}
                 onCancelCipWash={() => handleCancelCipWash(balloon.id)}
+                formRecipe={balloon.formRecipe}
+                formRunning={balloon.formRunning}
+                formStartAt={balloon.formStartAt}
+                formAccumMs={balloon.formAccumMs}
+                formDone={balloon.formDone}
+                refProductId={balloons.find(b => b.id === 3)?.productId}
+                onFormRecipe={(r) => handleFormRecipe(balloon.id, r)}
+                onFormStart={() => handleFormStart(balloon.id)}
+                onFormToggle={() => handleFormToggle(balloon.id)}
+                onFormRestart={() => handleFormRestart(balloon.id)}
+                onFormClear={() => handleFormClear(balloon.id)}
               />
             </motion.div>
           ))}
@@ -808,7 +963,7 @@ const App = () => {
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button
               onClick={handleGlobalPlay}
-              disabled={isRunning || !balloons.some(b => b.currentVolume > 0 && b.productId !== 'vazio' && machineCountOf(b) > 0 && !b.isRunning && !b.cipWashing && isCipValid(b.cipDoneAt, b.cipHours) && flowRatePerHourForIds(b.machineIds, b.machineFlow) > 0)}
+              disabled={isRunning || !balloons.some(b => b.currentVolume > 0 && b.productId !== 'vazio' && machineCountOf(b) > 0 && !b.isRunning && !b.cipWashing && !hasFormSession({ recipe: b.formRecipe, running: b.formRunning, startAt: b.formStartAt, accumMs: b.formAccumMs, done: b.formDone }) && isCipValid(b.cipDoneAt, b.cipHours) && flowRatePerHourForIds(b.machineIds, b.machineFlow) > 0)}
               className="btn-primary flex items-center justify-center gap-2 px-6 py-3 max-sm:flex-1 max-sm:px-3 max-sm:text-sm"
             >
               <span className="w-5 h-5" />
