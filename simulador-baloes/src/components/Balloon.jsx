@@ -93,6 +93,25 @@ const Balloon = ({
             {product.name}
           </span>
         </div>
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+          <span className="text-[11px] text-slate-500">🔧</span>
+          {(machineIds || []).length > 0 ? (
+            (machineIds || []).map((mid) => (
+              <span
+                key={mid}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                  isRunning
+                    ? 'bg-cyan-600/25 border-cyan-400/60 text-cyan-200'
+                    : 'bg-slate-800/60 border-slate-600/60 text-slate-300'
+                }`}
+              >
+                {mid}
+              </span>
+            ))
+          ) : (
+            <span className="text-[11px] text-slate-500">nenhuma máquina</span>
+          )}
+        </div>
       </div>
 
       {/* Giroflex de alerta — aceso e piscando em nível baixo */}
