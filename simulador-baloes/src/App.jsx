@@ -62,12 +62,14 @@ const getInitialBalloons = () => BALLOON_CONFIG.map(b => ({
   cipWashing: false,
   cipWashEndsAt: null,
   cipWashMinutes: DEFAULT_CIP_WASH_MINUTES,
-  // FORMULAÇÃO DO PRODUTO (só balões 01/02): receita + cronômetro próprio
+  // FORMULAÇÃO DO PRODUTO: receita + cronômetro próprio + produto a formular
+  // (padrão = produto do Balão 03; pode escolher outro por balão)
   formRecipe: null,
   formRunning: false,
   formStartAt: null,
   formAccumMs: 0,
   formDone: false,
+  formProductId: null,
 }));
 
 const App = () => {
@@ -133,6 +135,7 @@ const App = () => {
           formStartAt: typeof s.formStartAt === 'number' ? s.formStartAt : null,
           formAccumMs: Math.max(0, Number(s.formAccumMs) || 0),
           formDone: s.formDone === true,
+          formProductId: PRODUCTS.some(p => p.id === s.formProductId && !p.isEmpty) ? s.formProductId : null,
         };
       });
     };
@@ -478,11 +481,30 @@ const App = () => {
     showNotification(`Lavagem CIP interrompida no ${balloon?.name || 'Balão'}`, 'info');
   };
 
-  // ---------- FORMULAÇÃO DO PRODUTO (balões 01/02) ----------
+  // ---------- FORMULAÇÃO DO PRODUTO ----------
   // Cor de referência: produto configurado no Balão 03 (sem nova tabela).
   const formRefProduct = () => {
     const b3 = balloons.find(b => b.id === 3);
     return PRODUCTS.find(p => p.id === b3?.productId && !p.isEmpty) || null;
+  };
+
+  // Produto efetivo da formulação: o escolhido no balão, ou o do Balão 03.
+  const formProductOf = (balloon) => {
+    const chosen = PRODUCTS.find(p => p.id === balloon?.formProductId && !p.isEmpty);
+    return chosen || formRefProduct();
+  };
+
+  const handleFormProduct = (id, productId) => {
+    const balloon = balloons.find(b => b.id === id);
+    if (!balloon || balloon.formRunning) return;
+    if (!PRODUCTS.some(p => p.id === productId && !p.isEmpty)) return;
+    // Trocar o produto reinicia a contagem (como a receita)
+    updateBalloon(id, {
+      formProductId: productId,
+      formAccumMs: 0,
+      formStartAt: null,
+      formDone: false,
+    });
   };
 
   const handleFormRecipe = (id, recipe) => {
@@ -513,8 +535,8 @@ const App = () => {
       showNotification('Esvazie o balão para iniciar a formulação', 'warning');
       return;
     }
-    if (!formRefProduct()) {
-      showNotification('Defina um produto no Balão 03 como referência de cor', 'warning');
+    if (!formProductOf(balloon)) {
+      showNotification('Escolha o produto a formular (ou defina um no Balão 03)', 'warning');
       return;
     }
     updateBalloon(id, {
@@ -799,10 +821,8 @@ const App = () => {
     .filter(b => b.isRunning)
     .reduce((sum, b) => sum + flowRatePerHourForIds(b.machineIds, b.machineFlow), 0);
   const emptyCount = balloons.filter(b => b.currentVolume === 0 || b.productId === 'vazio').length;
-  // Cor de referência da formulação = produto atual do Balão 03
-  const refProd = formRefProduct();
-  const refColor = refProd?.color || '#94a3b8';
-  const refProductName = refProd?.name || '—';
+  // Id do produto de referência (Balão 03) p/ sugerir na formulação
+  const refProductId = formRefProduct()?.id || null;
   const runningCount = balloons.filter(b => b.isRunning).length;
 
   // Página pública: SÓ leitura, sem nenhum controle operacional
@@ -905,8 +925,8 @@ const App = () => {
                 cipWashing={balloon.cipWashing}
                 cipWashEndsAt={balloon.cipWashEndsAt}
                 formulation={{ recipe: balloon.formRecipe, running: balloon.formRunning, startAt: balloon.formStartAt, accumMs: balloon.formAccumMs, done: balloon.formDone }}
-                refColor={refColor}
-                refProductName={refProductName}
+                refColor={formProductOf(balloon)?.color || '#94a3b8'}
+                refProductName={formProductOf(balloon)?.name || '—'}
               />
               <ControlPanel
                 id={balloon.id}
@@ -944,7 +964,9 @@ const App = () => {
                 formStartAt={balloon.formStartAt}
                 formAccumMs={balloon.formAccumMs}
                 formDone={balloon.formDone}
-                refProductId={balloons.find(b => b.id === 3)?.productId}
+                refProductId={refProductId}
+                formProductId={balloon.formProductId}
+                onFormProduct={(p) => handleFormProduct(balloon.id, p)}
                 onFormRecipe={(r) => handleFormRecipe(balloon.id, r)}
                 onFormStart={() => handleFormStart(balloon.id)}
                 onFormToggle={() => handleFormToggle(balloon.id)}

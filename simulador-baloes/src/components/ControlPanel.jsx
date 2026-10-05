@@ -84,6 +84,8 @@ const ControlPanel = ({
   formAccumMs,
   formDone,
   refProductId,
+  formProductId,
+  onFormProduct,
   onFormRecipe,
   onFormStart,
   onFormToggle,
@@ -176,11 +178,13 @@ const ControlPanel = ({
   };
 
   const locked = isRunning || cipWashing; // envase rodando ou lavagem em curso
-  // Formulação (só balões 01/02): sessão = receita iniciada, pausada ou concluída
+  // Formulação: sessão = receita iniciada, pausada ou concluída
   const form = { recipe: formRecipe, running: formRunning, startAt: formStartAt, accumMs: formAccumMs, done: formDone };
   const formSession = hasFormSession(form);
   const formIdle = !formSession; // nunca iniciada (ou limpa)
   const refProduct = PRODUCTS.find((p) => p.id === refProductId);
+  const formEffProduct = PRODUCTS.find((p) => p.id === formProductId && !p.isEmpty)
+    || (refProduct && !refProduct.isEmpty ? refProduct : null);
   const volumeLocked = locked || formSession; // sem digitar litros com formulação ativa
   const activeIds = Array.isArray(machineIds) ? machineIds : [];
   const pctOf = (mid) => percentOf(machineFlow, mid);
@@ -540,23 +544,35 @@ const ControlPanel = ({
           )}
         </div>
 
-        {[1, 2].includes(id) && (
+        {
           <div className="pt-2 border-t border-slate-700/30">
             <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
               <FlaskConical className="w-4 h-4 text-violet-400" />
               🧪 FORMULAÇÃO DO PRODUTO
             </label>
 
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 mb-2">
+            <p className="text-xs text-slate-400 mb-1.5">Produto a formular:</p>
+            <div className="flex items-center gap-2 mb-2">
               <span
-                className="w-4 h-4 rounded-full border border-white/30 shrink-0"
-                style={{ background: refProduct && !refProduct.isEmpty ? refProduct.color : 'transparent' }}
+                className="w-6 h-6 rounded-full border border-white/30 shrink-0"
+                style={{ background: formEffProduct ? formEffProduct.color : 'transparent' }}
               />
-              <span className="text-xs text-slate-400">Referência (Balão 03):</span>
-              <span className="text-xs font-bold text-white ml-auto">
-                {refProduct && !refProduct.isEmpty ? refProduct.name : 'sem produto'}
-              </span>
+              <select
+                value={formProductId || refProductId || 'creme-leve'}
+                onChange={(e) => onFormProduct(e.target.value)}
+                className="select-field"
+                disabled={locked || formRunning}
+              >
+                {PRODUCTS.filter((p) => !p.isEmpty).map((p) => (
+                  <option key={p.id} value={p.id} style={{ backgroundColor: '#1e293b', color: 'white' }}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
             </div>
+            <p className="text-[11px] text-slate-500 mb-2">
+              Padrão: {refProduct && !refProduct.isEmpty ? `${refProduct.name} (Balão 03)` : 'nenhum no Balão 03'}
+            </p>
 
             <p className="text-xs text-slate-400 mb-1.5">Tipo de receita (define o tempo):</p>
             <div className="grid grid-cols-1 gap-2 mb-2">
@@ -624,7 +640,7 @@ const ControlPanel = ({
               </p>
             )}
           </div>
-        )}
+        }
 
         <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-slate-700/30">
           <button

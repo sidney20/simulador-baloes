@@ -48,11 +48,12 @@ const PublicView = ({ token }) => {
   const [live, setLive] = useState(false);
   const ownerRef = useRef(null);
 
-  // Cor de referência da formulação = produto atual do Balão 03
+  // Cor da formulação = produto escolhido no balão, ou o do Balão 03
   const refB3 = (balloons || []).find((b) => b.id === 3);
   const refProdPub = PRODUCTS.find((p) => p.id === refB3?.productId && !p.isEmpty);
-  const refColor = refProdPub?.color || '#94a3b8';
-  const refProductName = refProdPub?.name || '—';
+  const formProdOfPub = (b) => PRODUCTS.find((p) => p.id === b?.formProductId && !p.isEmpty) || refProdPub || null;
+  const pubColorOf = (b) => formProdOfPub(b)?.color || '#94a3b8';
+  const pubNameOf = (b) => formProdOfPub(b)?.name || '—';
 
   useEffect(() => {
     document.title = 'Acompanhar Balões — Somente leitura';
@@ -241,8 +242,8 @@ const PublicView = ({ token }) => {
                   cipWashing={b.cipWashing}
                   cipWashEndsAt={b.cipWashEndsAt ?? null}
                   formulation={b.formRecipe ? { recipe: b.formRecipe, running: !!b.formRunning, startAt: b.formStartAt ?? null, accumMs: b.formAccumMs || 0, done: !!b.formDone } : null}
-                  refColor={refColor}
-                  refProductName={refProductName}
+                  refColor={pubColorOf(b)}
+                  refProductName={pubNameOf(b)}
                 />
               </motion.div>
             ))}
