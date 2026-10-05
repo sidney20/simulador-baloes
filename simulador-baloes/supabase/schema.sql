@@ -67,9 +67,8 @@ create policy "simple anon all share links"
   using (true)
   with check (true);
 
--- 4) Tempo real opcional (a página pública já atualiza a cada 5s por polling;
---    ative o Realtime se quiser push instantâneo)
--- alter publication supabase_realtime add table public.tanks;
+-- 4) Tempo real (push instantâneo para a página pública)
+alter publication supabase_realtime add table public.tanks;
 
 -- ============================================================
 -- MODELO COM LOGIN (futuro — deixe comentado por enquanto)

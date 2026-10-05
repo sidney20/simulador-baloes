@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Factory, Eye, AlertTriangle } from 'lucide-react';
 import Balloon from './Balloon';
 import { validateShareToken, ownerOfToken, fetchOwnerBalloons } from '../share';
 import { STORAGE_KEY, BALLOON_CONFIG } from '../constants';
-import { isSupabaseEnabled } from '../supabaseClient';
+import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { rowToBalloon } from '../sync';
 
 /** Lê o snapshot local dos balões (somente leitura, sem alterar nada). */
@@ -38,6 +38,8 @@ const PublicView = ({ token }) => {
   const [checking, setChecking] = useState(true);
   const [balloons, setBalloons] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
+  const [live, setLive] = useState(false);
+  const ownerRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Acompanhar Balões — Somente leitura';
@@ -55,7 +57,10 @@ const PublicView = ({ token }) => {
       // 2) Busca os balões: nuvem (dono do link) ou snapshot local
       let list = null;
       if (isSupabaseEnabled) {
-        const ownerId = await ownerOfToken(token);
+        if (!ownerRef.current) {
+          ownerRef.current = await ownerOfToken(token);
+        }
+        const ownerId = ownerRef.current;
         if (!cancelled && ownerId && ownerId !== 'local') {
           const rows = await fetchOwnerBalloons(ownerId);
           if (rows) list = rowsToBalloons(rows);
@@ -69,8 +74,8 @@ const PublicView = ({ token }) => {
     };
 
     load();
-    // Atualização automática a cada 5 segundos (SÓ leitura)
-    const timer = setInterval(load, 5000);
+    // Polling de segurança a cada 2s (SÓ leitura)
+    const timer = setInterval(load, 2000);
     const onStorage = (e) => {
       if (!e.key || e.key === STORAGE_KEY) load();
     };
@@ -81,6 +86,38 @@ const PublicView = ({ token }) => {
       window.removeEventListener('storage', onStorage);
     };
   }, [token]);
+
+  // Tempo real via Supabase Realtime: aplica a linha alterada na hora,
+  // sem esperar o polling. (Exige o SQL do realtime aplicado.)
+  useEffect(() => {
+    if (!isSupabaseEnabled || !link) return;
+    const ownerId = ownerRef.current;
+    if (!ownerId || ownerId === 'local') return;
+    const channel = supabase
+      .channel(`tanks-${ownerId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tanks', filter: `owner_id=eq.${ownerId}` },
+        (payload) => {
+          const row = payload.new;
+          if (!row) return;
+          const cfg = BALLOON_CONFIG.find((c) => c.id === row.balloon_id);
+          if (!cfg) return;
+          const updated = rowToBalloon(row, cfg);
+          setBalloons((prev) => {
+            if (!prev) return prev;
+            return prev.map((b) => (b.id === cfg.id ? { ...updated, isRunning: row.is_running } : b));
+          });
+          setUpdatedAt(new Date());
+          setLive(true);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+      setLive(false);
+    };
+  }, [link]);
 
   if (checking && !link) {
     return (
@@ -139,8 +176,8 @@ const PublicView = ({ token }) => {
               VISUALIZAÇÃO — Somente leitura
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs font-mono tabular-nums">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              Última atualização: {fmtClock(updatedAt)}
+              <span className={`w-2 h-2 rounded-full ${live ? 'bg-green-400' : 'bg-amber-400'} animate-pulse`} />
+              {live ? 'AO VIVO' : 'Atualizado'}: {fmtClock(updatedAt)}
             </span>
           </div>
         </div>
@@ -192,7 +229,7 @@ const PublicView = ({ token }) => {
           </div>
         )}
         <p className="text-center text-xs text-slate-500 mt-6">
-          Dados atualizados automaticamente a cada 5 segundos · Sem permissão para operar
+          Dados atualizados em tempo real · Sem permissão para operar
         </p>
       </main>
     </div>
