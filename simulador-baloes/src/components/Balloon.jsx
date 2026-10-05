@@ -48,7 +48,6 @@ const Balloon = ({
   const product = PRODUCTS.find(p => p.id === productId) || PRODUCTS[0];
   const percentage = isEmpty ? 0 : Math.max(0, Math.min(100, (currentVolume / capacity) * 100));
   const hasLiquidEnvase = !product.isEmpty && percentage > 0;
-  const hasLiquid = !formActive && hasLiquidEnvase;
 
   // Topo do líquido dentro do vidro (100% = topo interno, 0% = fundo interno)
   const liquidTop = INNER.bottom - (INNER_H * percentage) / 100;
@@ -89,6 +88,8 @@ const Balloon = ({
   const formHeight = Math.max(0, INNER.bottom - formTop);
   const formSurfaceBoxPct = 100 - formPct * 100; // aprox. na caixa do overlay
   const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
+  // Líquido do envase some quando a formulação assume o visual
+  const hasLiquid = !formActive && hasLiquidEnvase;
 
   return (
     <div className={`relative flex flex-col items-center gap-3 sm:gap-4 glass-panel p-4 sm:p-6 min-w-0 w-full flex-1 transition-shadow duration-300 ${isLow ? 'ring-2 ring-red-500/80 shadow-[0_0_45px_rgba(239,68,68,0.35)]' : ''} ${cipWashing ? 'ring-2 ring-sky-400/80 shadow-[0_0_45px_rgba(56,189,248,0.35)]' : ''}`}>
