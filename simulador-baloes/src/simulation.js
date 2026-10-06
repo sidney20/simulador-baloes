@@ -198,6 +198,49 @@ export function formatCountdownFull(ms) {
   return `${h}h${p2(m)}m${p2(s)}s`;
 }
 
+/**
+ * Balão "pristino" = exatamente como recém-instalado (zeros, vazio, padrões).
+ * Usado para NUNCA deixar um painel zerado apagar dado real da nuvem.
+ */
+export function isPristineBalloon(b) {
+  if (!b) return true;
+  return (
+    (b.currentVolume || 0) === 0 &&
+    (b.initialVolume || 0) === 0 &&
+    (b.productId || 'vazio') === 'vazio' &&
+    (Array.isArray(b.machineIds) ? b.machineIds.length : 0) === 0 &&
+    !b.isRunning && !b.cipWashing &&
+    (b.sessionAccum || 0) === 0 && !b.sessionStart &&
+    (b.expectedAccum || 0) === 0 &&
+    !b.estimatedFinishAt && !b.pausedAt &&
+    (b.totalPausedMs || 0) === 0 &&
+    !b.cipDoneAt && !b.cipWashEndsAt &&
+    !b.formRecipe && !b.formRunning && !b.formStartAt &&
+    (b.formAccumMs || 0) === 0 && !b.formDone &&
+    !b.formProductId && (b.formTargetLiters || 0) === 0
+  );
+}
+
+/**
+ * Adota a nuvem somente em navegador SEM nada salvo (primeira visita).
+ * Quem já tem dado local nunca tem ele trocado por dado alheio.
+ */
+export function shouldAdoptRemote({ remoteHasRows, hadLocal }) {
+  return !!remoteHasRows && !hadLocal;
+}
+
+/**
+ * Libera o push p/ nuvem. Regras:
+ * - sem fetch com sucesso: NUNCA (cobre falha de rede);
+ * - com dado local (ou que já operou): sempre (inclusive esvaziar de propósito);
+ * - zerado virgem: só semeia se a nuvem também estiver vazia.
+ */
+export function shouldPushRemote({ fetchOk, pristine, everDirty, remoteEmpty }) {
+  if (!fetchOk) return false;
+  if (!pristine) return true;
+  return !!(everDirty || remoteEmpty);
+}
+
 /** "04:37" (mm:ss) a partir de milissegundos. Só exibição. */
 export function formatClockMS(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));

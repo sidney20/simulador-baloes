@@ -17,7 +17,7 @@ import ControlPanel from './components/ControlPanel';
 import Dashboard from './components/Dashboard';
 import ShareModal from './components/ShareModal';
 import PublicView from './components/PublicView';
-import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession } from './simulation';
+import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession, isPristineBalloon, shouldAdoptRemote, shouldPushRemote } from './simulation';
 import { isSupabaseEnabled } from './supabaseClient';
 import { fetchRemoteBalloons, pushRemoteBalloons } from './sync';
 import { 
@@ -173,27 +173,44 @@ const App = () => {
   // Sem config = só LocalStorage.
   const pushTimer = useRef(null);
   const [cloudReady, setCloudReady] = useState(!isSupabaseEnabled);
+  // Nuvem vazia? (p/ virgem semear; com dado, virgem nunca apaga)
+  const remoteEmptyRef = useRef(true);
+  // Nesta sessão os balões já tiveram dado real? (esvaziar de propósito envia)
+  const everDirtyRef = useRef(false);
+  useEffect(() => {
+    if (!balloons.every(isPristineBalloon)) everDirtyRef.current = true;
+  }, [balloons]);
   useEffect(() => {
     if (!isSupabaseEnabled) return;
     let cancelled = false;
+    let retryTimer = null;
     // Adota a nuvem SOMENTE em navegador sem nada salvo (primeira visita).
     // Se já existe dado local, ele vence (nunca apaga o real por zeros alheios).
     const hadLocal = readStorage() !== null;
-    fetchRemoteBalloons()
-      .then((remote) => {
-        if (cancelled) return;
-        if (remote && remote.length > 0 && !hadLocal) {
-          setBalloons((prev) =>
-            BALLOON_CONFIG.map((cfg) => remote.find((r) => r.id === cfg.id) || prev.find((b) => b.id === cfg.id))
-          );
-          showNotification('☁️ Dados sincronizados da nuvem', 'info');
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setCloudReady(true);
-      });
-    return () => { cancelled = true; };
+    const tryFetch = () => {
+      fetchRemoteBalloons()
+        .then((remote) => {
+          if (cancelled) return;
+          const hasRows = !!(remote && remote.length > 0);
+          remoteEmptyRef.current = !hasRows;
+          if (shouldAdoptRemote({ remoteHasRows: hasRows, hadLocal })) {
+            setBalloons((prev) =>
+              BALLOON_CONFIG.map((cfg) => remote.find((r) => r.id === cfg.id) || prev.find((b) => b.id === cfg.id))
+            );
+            showNotification('☁️ Dados sincronizados da nuvem', 'info');
+          }
+          setCloudReady(true);
+        })
+        .catch(() => {
+          // Falha de rede: NÃO libera push; tenta de novo em silêncio
+          if (!cancelled) retryTimer = setTimeout(tryFetch, 20000);
+        });
+    };
+    tryFetch();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -204,6 +221,10 @@ const App = () => {
   const [cloudStatus, setCloudStatus] = useState({ state: 'idle', at: null });
   useEffect(() => {
     if (!isSupabaseEnabled || !cloudReady) return;
+    // Painel zerado que nunca operou NÃO apaga nuvem com processo em andamento.
+    // (Semeia zeros só se a nuvem também estiver vazia; esvaziar de propósito envia.)
+    const pristine = balloons.every(isPristineBalloon);
+    if (!shouldPushRemote({ fetchOk: true, pristine, everDirty: everDirtyRef.current, remoteEmpty: remoteEmptyRef.current })) return;
     const doPush = () => {
       lastPush.current = Date.now();
       pushRemoteBalloons(balloonsRef.current)

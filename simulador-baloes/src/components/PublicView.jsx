@@ -86,7 +86,21 @@ const PublicView = ({ token }) => {
       }
       if (!list) list = readSnapshot();
       if (cancelled) return;
-      setBalloons(list);
+      // Rede anti-fantasma: ignora pacote todo-zerado se a leitura anterior
+      // tinha volume E os timestamps não avançaram (dado real preservado).
+      setBalloons((prev) => {
+        if (list && prev && prev.length > 0) {
+          const prevVol = prev.reduce((s, b) => s + (b.currentVolume || 0), 0);
+          const listVol = list.reduce((s, b) => s + (b.currentVolume || 0), 0);
+          if (prevVol > 0 && listVol === 0) {
+            const t = (b) => (b.remoteUpdatedAt ? Date.parse(b.remoteUpdatedAt) : NaN);
+            const prevMax = Math.max(...prev.map(t).filter(Number.isFinite), 0);
+            const listMax = Math.max(...list.map(t).filter(Number.isFinite), 0);
+            if (!(listMax > prevMax)) return prev;
+          }
+        }
+        return list;
+      });
       setUpdatedAt(new Date());
       setChecking(false);
     };
