@@ -119,7 +119,7 @@ export async function fetchRemoteBalloons() {
   }).filter(Boolean);
 }
 
-/** Sobe os 3 balões (upsert por owner+balloon). Silencioso se falhar. */
+/** Sobe os 3 balões (upsert por owner+balloon). Erro vai p/ console + status. */
 export async function pushRemoteBalloons(balloons) {
   if (!isSupabaseEnabled || !Array.isArray(balloons)) return false;
   try {
@@ -128,8 +128,13 @@ export async function pushRemoteBalloons(balloons) {
     const { error } = await supabase
       .from('tanks')
       .upsert(rows, { onConflict: 'owner_id,balloon_id' });
-    return !error;
-  } catch {
+    if (error) {
+      console.warn('[nuvem] falha no envio:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[nuvem] falha no envio:', e?.message || e);
     return false;
   }
 }
