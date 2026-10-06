@@ -176,10 +176,13 @@ const App = () => {
   useEffect(() => {
     if (!isSupabaseEnabled) return;
     let cancelled = false;
+    // Adota a nuvem SOMENTE em navegador sem nada salvo (primeira visita).
+    // Se já existe dado local, ele vence (nunca apaga o real por zeros alheios).
+    const hadLocal = readStorage() !== null;
     fetchRemoteBalloons()
       .then((remote) => {
         if (cancelled) return;
-        if (remote && remote.length > 0) {
+        if (remote && remote.length > 0 && !hadLocal) {
           setBalloons((prev) =>
             BALLOON_CONFIG.map((cfg) => remote.find((r) => r.id === cfg.id) || prev.find((b) => b.id === cfg.id))
           );
