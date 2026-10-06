@@ -470,8 +470,8 @@ const ControlPanel = ({
                     type="time"
                     value={cipWashStart || ''}
                     onChange={(e) => setCipWashStart(e.target.value)}
-                    className="input-field text-center font-mono"
-                    style={{ paddingLeft: 8, paddingRight: 8 }}
+                    className="input-field no-spinner text-center font-mono text-sm min-w-0 w-full"
+                    style={{ paddingLeft: 4, paddingRight: 4 }}
                     disabled={locked}
                     aria-label="Hora inicial da lavagem"
                   />
@@ -482,8 +482,8 @@ const ControlPanel = ({
                     type="time"
                     value={cipWashEnd || ''}
                     onChange={(e) => setCipWashEnd(e.target.value)}
-                    className="input-field text-center font-mono"
-                    style={{ paddingLeft: 8, paddingRight: 8 }}
+                    className="input-field no-spinner text-center font-mono text-sm min-w-0 w-full"
+                    style={{ paddingLeft: 4, paddingRight: 4 }}
                     disabled={locked}
                     aria-label="Hora final da lavagem"
                   />

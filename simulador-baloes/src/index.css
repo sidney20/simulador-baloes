@@ -332,6 +332,15 @@ input.no-spinner {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+/* Relógio nativo compacto (cabe HH:MM mesmo em tela estreita) */
+input[type="time"]::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+input[type="time"]::-webkit-datetime-edit {
+  padding: 0;
+}
 
 @utility scrollbar-hide {
   -ms-overflow-style: none;
