@@ -9,20 +9,12 @@ export const isSupabaseEnabled = Boolean(url && key);
 export const supabase = isSupabaseEnabled ? createClient(url, key) : null;
 
 /**
- * Identificador do dono deste painel (um UUID por navegador).
- * Sem login, é ele que separa os balões de cada aparelho no banco.
+ * DONO FIXO da fábrica: um único identificador para TODOS os aparelhos.
+ * Assim o painel do PC, o site e o celular veem e editam os MESMOS balões,
+ * e o link único sempre mostra os dados certos. Sem login, sem “cadernos”.
  */
-const OWNER_KEY = 'simulador-baloes-owner-id';
+export const FACTORY_OWNER_ID = '00000000-0000-0000-0000-000000000001';
 
 export function getOwnerId() {
-  try {
-    let id = localStorage.getItem(OWNER_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem(OWNER_KEY, id);
-    }
-    return id;
-  } catch {
-    return '00000000-0000-0000-0000-000000000000';
-  }
+  return FACTORY_OWNER_ID;
 }

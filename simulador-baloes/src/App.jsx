@@ -1096,7 +1096,6 @@ const App = () => {
       <ShareModal
         open={shareOpen}
         onClose={() => setShareOpen(false)}
-        onToast={showNotification}
       />
 
       <AnimatePresence>

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Factory, Eye, AlertTriangle } from 'lucide-react';
 import Balloon from './Balloon';
-import { validateShareToken, ownerOfToken, fetchOwnerBalloons } from '../share';
+import { validateShareToken, SHARE_SLUG } from '../share';
 import { STORAGE_KEY, BALLOON_CONFIG, PRODUCTS } from '../constants';
-import { supabase, isSupabaseEnabled } from '../supabaseClient';
-import { rowToBalloon } from '../sync';
+import { supabase, isSupabaseEnabled, FACTORY_OWNER_ID } from '../supabaseClient';
+import { rowToBalloon, fetchOwnerRows } from '../sync';
 
 /** Lê o snapshot local dos balões (somente leitura, sem alterar nada). */
 function readSnapshot() {
@@ -55,7 +55,8 @@ const PublicView = ({ token }) => {
   const [balloons, setBalloons] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [live, setLive] = useState(false);
-  const ownerRef = useRef(null);
+  // Dono fixo da fábrica: todos veem os mesmos balões
+  const ownerId = FACTORY_OWNER_ID;
 
   // Cor da formulação = produto escolhido no balão, ou o do Balão 03
   const refB3 = (balloons || []).find((b) => b.id === 3);
@@ -69,7 +70,7 @@ const PublicView = ({ token }) => {
     let cancelled = false;
 
     const load = async () => {
-      // 1) Valida o token (nuvem ou local)
+      // 1) Valida o slug (só 'triangulo' abre)
       const valid = await validateShareToken(token);
       if (cancelled) return;
       setLink(valid);
@@ -77,17 +78,11 @@ const PublicView = ({ token }) => {
         setChecking(false);
         return;
       }
-      // 2) Busca os balões: nuvem (dono do link) ou snapshot local
+      // 2) Busca os balões do DONO FIXO (nuvem) ou snapshot local
       let list = null;
       if (isSupabaseEnabled) {
-        if (!ownerRef.current) {
-          ownerRef.current = await ownerOfToken(token);
-        }
-        const ownerId = ownerRef.current;
-        if (!cancelled && ownerId && ownerId !== 'local') {
-          const rows = await fetchOwnerBalloons(ownerId);
-          if (rows) list = rowsToBalloons(rows);
-        }
+        const rows = await fetchOwnerRows(ownerId);
+        if (!cancelled && rows) list = rowsToBalloons(rows);
       }
       if (!list) list = readSnapshot();
       if (cancelled) return;
@@ -118,8 +113,6 @@ const PublicView = ({ token }) => {
   // sem esperar o polling. (Exige o SQL do realtime aplicado.)
   useEffect(() => {
     if (!isSupabaseEnabled || !link) return;
-    const ownerId = ownerRef.current;
-    if (!ownerId || ownerId === 'local') return;
     const channel = supabase
       .channel(`tanks-${ownerId}`)
       .on(
@@ -161,15 +154,11 @@ const PublicView = ({ token }) => {
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
         <div className="max-w-md w-full glass-panel p-6 sm:p-8 text-center !border-red-500/40">
           <AlertTriangle className="w-14 h-14 text-red-400 mx-auto mb-3" />
-          <h1 className="text-xl font-bold text-white">Link não reconhecido aqui</h1>
+          <h1 className="text-xl font-bold text-white">Link inválido</h1>
           <p className="text-sm text-slate-300 mt-3">
-            Este link <b>não existe neste navegador</b>, expirou ou foi revogado.
+            O único link válido é o do acompanhamento da fábrica. Volte ao painel
+            e use o botão <b>Compartilhar</b>.
           </p>
-          <ul className="text-xs text-slate-400 mt-3 text-left list-disc list-inside space-y-1 bg-slate-800/50 rounded-xl p-3">
-            <li>Abrindo em <b>outro celular ou aba anônima</b>? O link local só vale no navegador onde foi criado.</li>
-            <li>Para acompanhar de outro aparelho, conecte o Supabase (ver <span className="font-mono">supabase/SUPABASE_SETUP.md</span>).</li>
-            <li>Se foi revogado, peça um novo link a quem compartilhou.</li>
-          </ul>
           <a
             href="#/"
             className="inline-block mt-4 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold"
@@ -221,9 +210,9 @@ const PublicView = ({ token }) => {
         })()}
         {!balloons ? (
           <div className="glass-panel p-8 text-center">
-            <p className="text-lg font-bold text-white">Nenhum dado encontrado neste navegador</p>
+            <p className="text-lg font-bold text-white">Nenhum dado encontrado</p>
             <p className="text-sm text-slate-400 mt-2">
-              Abra o painel principal neste mesmo navegador para gerar os dados dos balões.
+              Abra o painel principal para gerar os dados dos balões (eles sobem para a nuvem sozinhos).
             </p>
             <a
               href="#/"

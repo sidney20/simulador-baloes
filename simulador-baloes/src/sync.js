@@ -88,6 +88,22 @@ export function rowToBalloon(r, cfg) {
   };
 }
 
+/** Linhas brutas dos tanques de um dono (p/ página pública). Null se indisponível. */
+export async function fetchOwnerRows(ownerId) {
+  if (!isSupabaseEnabled || !ownerId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('tanks')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .order('balloon_id');
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 /** Baixa os 3 balões do dono. Retorna null se indisponível/sem dados. */
 export async function fetchRemoteBalloons() {
   if (!isSupabaseEnabled) return null;
