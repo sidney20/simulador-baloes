@@ -168,18 +168,28 @@ const App = () => {
   }, [balloons]);
 
   // Nuvem (Supabase): na abertura, a nuvem vence o local; depois, sobe
-  // com debounce (last-writer-wins). Sem config = só LocalStorage.
+  // com throttle (last-writer-wins). O push só libera DEPOIS do fetch
+  // (senão um recém-instalado subiria zeros por cima dos dados reais).
+  // Sem config = só LocalStorage.
   const pushTimer = useRef(null);
+  const [cloudReady, setCloudReady] = useState(!isSupabaseEnabled);
   useEffect(() => {
     if (!isSupabaseEnabled) return;
     let cancelled = false;
-    fetchRemoteBalloons().then((remote) => {
-      if (cancelled || !remote || remote.length === 0) return;
-      setBalloons((prev) =>
-        BALLOON_CONFIG.map((cfg) => remote.find((r) => r.id === cfg.id) || prev.find((b) => b.id === cfg.id))
-      );
-      showNotification('☁️ Dados sincronizados da nuvem', 'info');
-    }).catch(() => {});
+    fetchRemoteBalloons()
+      .then((remote) => {
+        if (cancelled) return;
+        if (remote && remote.length > 0) {
+          setBalloons((prev) =>
+            BALLOON_CONFIG.map((cfg) => remote.find((r) => r.id === cfg.id) || prev.find((b) => b.id === cfg.id))
+          );
+          showNotification('☁️ Dados sincronizados da nuvem', 'info');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCloudReady(true);
+      });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -188,7 +198,7 @@ const App = () => {
   // Debounce puro nunca dispararia com o envase ativo (muda a cada 1s).
   const lastPush = useRef(0);
   useEffect(() => {
-    if (!isSupabaseEnabled) return;
+    if (!isSupabaseEnabled || !cloudReady) return;
     const doPush = () => {
       lastPush.current = Date.now();
       pushRemoteBalloons(balloonsRef.current).catch(() => {});
@@ -202,7 +212,7 @@ const App = () => {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [balloons]);
+  }, [balloons, cloudReady]);
 
   const playAlertSound = useCallback(() => {
     if (!soundEnabled) return;

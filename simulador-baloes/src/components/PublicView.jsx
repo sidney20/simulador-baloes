@@ -26,7 +26,16 @@ function readSnapshot() {
 function liveBalloon(row, cfg) {
   // Na leitura, o estado RODANDO vem do banco em tempo real
   // (rowToBalloon zera p/ o painel não retomar sozinho no reload).
-  return { ...rowToBalloon(row, cfg), isRunning: row.is_running === true };
+  return { ...rowToBalloon(row, cfg), isRunning: row.is_running === true, remoteUpdatedAt: row.updated_at || null };
+}
+
+/** Idade dos dados em ms (null se desconhecida). */
+function dataAgeMs(balloons) {
+  const times = (balloons || [])
+    .map((b) => (b.remoteUpdatedAt ? Date.parse(b.remoteUpdatedAt) : NaN))
+    .filter((t) => Number.isFinite(t));
+  if (times.length === 0) return null;
+  return Date.now() - Math.max(...times);
 }
 
 /** Converte linhas do banco para o formato do Balloon. */
@@ -202,6 +211,14 @@ const PublicView = ({ token }) => {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {(() => {
+          const age = dataAgeMs(balloons);
+          return age !== null && age > 120000 ? (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm text-center">
+              ⚠ Dados de {fmtClock(new Date(Date.now() - age))} — o painel principal pode estar offline ou sem internet
+            </div>
+          ) : null;
+        })()}
         {!balloons ? (
           <div className="glass-panel p-8 text-center">
             <p className="text-lg font-bold text-white">Nenhum dado encontrado neste navegador</p>
