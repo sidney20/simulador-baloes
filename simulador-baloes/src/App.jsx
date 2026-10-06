@@ -9,15 +9,14 @@ import {
   normalizeMachineIds,
   STORAGE_KEY,
   LOW_LEVEL_THRESHOLD,
-  DEFAULT_CIP_HOURS,
-  DEFAULT_CIP_WASH_MINUTES
+  DEFAULT_CIP_HOURS
 } from './constants';
 import Balloon from './components/Balloon';
 import ControlPanel from './components/ControlPanel';
 import Dashboard from './components/Dashboard';
 import ShareModal from './components/ShareModal';
 import PublicView from './components/PublicView';
-import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession, isPristineBalloon, shouldAdoptRemote, shouldPushRemote } from './simulation';
+import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession, isPristineBalloon, shouldAdoptRemote, shouldPushRemote, resolveWashEnd, fmtHM, defaultWashWindow } from './simulation';
 import { isSupabaseEnabled } from './supabaseClient';
 import { fetchRemoteBalloons, pushRemoteBalloons } from './sync';
 import { 
@@ -58,10 +57,12 @@ const getInitialBalloons = () => BALLOON_CONFIG.map(b => ({
   // CIP (limpeza): validade configurável em horas + momento da realização
   cipHours: DEFAULT_CIP_HOURS,
   cipDoneAt: null,
-  // Lavagem CIP (spray ball): dura cipWashMinutes com o balão vazio
+  // Lavagem CIP (spray ball): janela início/fim em HH:MM, começa na hora
   cipWashing: false,
+  cipWashStart: defaultWashWindow().start,
+  cipWashEnd: defaultWashWindow().end,
+  cipWashStartAt: null,
   cipWashEndsAt: null,
-  cipWashMinutes: DEFAULT_CIP_WASH_MINUTES,
   // FORMULAÇÃO DO PRODUTO: receita + cronômetro próprio + produto a formular
   // (padrão = produto do Balão 03; pode escolher outro por balão)
   formRecipe: null,
@@ -129,8 +130,10 @@ const App = () => {
           cipHours: Number(s.cipHours) > 0 ? Number(s.cipHours) : DEFAULT_CIP_HOURS,
           cipDoneAt: typeof s.cipDoneAt === 'number' ? s.cipDoneAt : null,
           cipWashing: s.cipWashing === true,
+          cipWashStart: /^\d{1,2}:\d{2}$/.test(s.cipWashStart || '') ? s.cipWashStart : defaultWashWindow().start,
+          cipWashEnd: /^\d{1,2}:\d{2}$/.test(s.cipWashEnd || '') ? s.cipWashEnd : defaultWashWindow().end,
+          cipWashStartAt: typeof s.cipWashStartAt === 'number' ? s.cipWashStartAt : null,
           cipWashEndsAt: typeof s.cipWashEndsAt === 'number' ? s.cipWashEndsAt : null,
-          cipWashMinutes: Number(s.cipWashMinutes) > 0 ? Number(s.cipWashMinutes) : DEFAULT_CIP_WASH_MINUTES,
           formRecipe: s.formRecipe === 'grande' ? 'grande' : s.formRecipe === 'normal' ? 'normal' : null,
           formRunning: s.formRunning === true,
           formStartAt: typeof s.formStartAt === 'number' ? s.formStartAt : null,
@@ -487,17 +490,12 @@ const App = () => {
     updateBalloon(id, { cipHours: v });
   };
 
-  const handleCipWashMinutesChange = (id, minutes) => {
-    const v = Math.max(1, Math.min(720, Number(minutes) || DEFAULT_CIP_WASH_MINUTES));
-    updateBalloon(id, { cipWashMinutes: v });
+  const handleWashStartStr = (id, v) => {
+    updateBalloon(id, { cipWashStart: String(v || '') });
   };
 
-  const fmtWashDuration = (totalMin) => {
-    const t = Math.max(1, Math.round(totalMin));
-    if (t < 60) return `${t} min`;
-    const h = Math.floor(t / 60);
-    const m = t % 60;
-    return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
+  const handleWashEndStr = (id, v) => {
+    updateBalloon(id, { cipWashEnd: String(v || '') });
   };
 
   const handleStartCipWash = (id) => {
@@ -507,17 +505,31 @@ const App = () => {
       showNotification('Esvazie o balão para iniciar a lavagem CIP', 'warning');
       return;
     }
-    const minutes = balloon.cipWashMinutes || DEFAULT_CIP_WASH_MINUTES;
+    // Começa AGORA; termina às HH:MM (+24h se já passou). Duração = consequência.
+    const r = resolveWashEnd(balloon.cipWashEnd);
+    if (r.error === 'invalid') {
+      showNotification('Informe a hora final da lavagem (HH:MM)', 'warning');
+      return;
+    }
+    if (r.error === 'short') {
+      showNotification('A hora final deve ser ao menos 1 min após o início', 'warning');
+      return;
+    }
     updateBalloon(id, {
       cipWashing: true,
-      cipWashEndsAt: Date.now() + minutes * 60000,
+      cipWashStart: fmtHM(r.startAt),
+      cipWashStartAt: r.startAt,
+      cipWashEndsAt: r.endsAt,
     });
-    showNotification(`🛁 Lavagem CIP iniciada no ${balloon.name} (${fmtWashDuration(minutes)})`, 'info');
+    showNotification(
+      `🛁 Lavagem CIP no ${balloon.name}: ${fmtHM(r.startAt)} → ${fmtHM(r.endsAt)}${r.nextDay ? ' (termina amanhã)' : ''}`,
+      'info'
+    );
   };
 
   const handleCancelCipWash = (id) => {
     const balloon = balloons.find(b => b.id === id);
-    updateBalloon(id, { cipWashing: false, cipWashEndsAt: null });
+    updateBalloon(id, { cipWashing: false, cipWashStartAt: null, cipWashEndsAt: null });
     showNotification(`Lavagem CIP interrompida no ${balloon?.name || 'Balão'}`, 'info');
   };
 
@@ -1010,6 +1022,7 @@ const App = () => {
                 cipHours={balloon.cipHours}
                 cipDoneAt={balloon.cipDoneAt}
                 cipWashing={balloon.cipWashing}
+                cipWashStartAt={balloon.cipWashStartAt}
                 cipWashEndsAt={balloon.cipWashEndsAt}
                 formulation={{ recipe: balloon.formRecipe, running: balloon.formRunning, startAt: balloon.formStartAt, accumMs: balloon.formAccumMs, done: balloon.formDone }}
                 refColor={formProductOf(balloon)?.color || '#94a3b8'}
@@ -1041,9 +1054,12 @@ const App = () => {
                 cipHours={balloon.cipHours}
                 setCipHours={(h) => handleCipHoursChange(balloon.id, h)}
                 cipDoneAt={balloon.cipDoneAt}
-                cipWashMinutes={balloon.cipWashMinutes}
-                setCipWashMinutes={(m) => handleCipWashMinutesChange(balloon.id, m)}
+                cipWashStart={balloon.cipWashStart}
+                setCipWashStart={(v) => handleWashStartStr(balloon.id, v)}
+                cipWashEnd={balloon.cipWashEnd}
+                setCipWashEnd={(v) => handleWashEndStr(balloon.id, v)}
                 cipWashing={balloon.cipWashing}
+                cipWashStartAt={balloon.cipWashStartAt}
                 cipWashEndsAt={balloon.cipWashEndsAt}
                 onStartCipWash={() => handleStartCipWash(balloon.id)}
                 onCancelCipWash={() => handleCancelCipWash(balloon.id)}

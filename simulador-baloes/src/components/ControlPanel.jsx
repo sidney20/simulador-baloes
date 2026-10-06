@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { PRODUCTS, MACHINES, RECIPES } from '../constants';
-import { flowRatePerHourForIds, machineFlowRate, percentOf, machineMaxFlow, isCipValid, formatBrasiliaDateTime, formatClockMS, hasFormSession, formElapsedMs } from '../simulation';
+import { flowRatePerHourForIds, machineFlowRate, percentOf, machineMaxFlow, isCipValid, formatBrasiliaDateTime, formatClockMS, hasFormSession, formElapsedMs, fmtHM } from '../simulation';
 import { Volume2, Truck, RotateCcw, Square, Play, Pause, AlertTriangle, Sparkles, Check, FlaskConical, X } from 'lucide-react';
 
 // Exibe % com vírgula decimal (só exibição)
@@ -72,9 +72,12 @@ const ControlPanel = ({
   cipHours,
   setCipHours,
   cipDoneAt,
-  cipWashMinutes,
-  setCipWashMinutes,
+  cipWashStart,
+  setCipWashStart,
+  cipWashEnd,
+  setCipWashEnd,
   cipWashing,
+  cipWashStartAt,
   cipWashEndsAt,
   onStartCipWash,
   onCancelCipWash,
@@ -100,8 +103,6 @@ const ControlPanel = ({
   // só confirma (commit) ao sair do campo ou apertar Enter.
   const volRef = useRef(null);
   const cipRef = useRef(null);
-  const washHRef = useRef(null);
-  const washMRef = useRef(null);
   const targetRef = useRef(null);
   const [targetText, setTargetText] = useState(() => String(Math.round(Number(formTargetLiters) || 0) || ''));
 
@@ -123,13 +124,6 @@ const ControlPanel = ({
   };
   const [volText, setVolText] = useState(() => String(Math.round(currentVolume)));
   const [cipText, setCipText] = useState(() => String(cipHours ?? ''));
-  // Duração da lavagem em horas + minutos (texto livre, confirma no blur/Enter)
-  const splitWash = (total) => {
-    const t = Math.max(0, Number(total) || 0);
-    return { h: String(Math.floor(t / 60)), m: String(t % 60) };
-  };
-  const [washHText, setWashHText] = useState(() => splitWash(cipWashMinutes).h);
-  const [washMText, setWashMText] = useState(() => splitWash(cipWashMinutes).m);
 
   useEffect(() => {
     if (document.activeElement !== volRef.current) {
@@ -142,15 +136,6 @@ const ControlPanel = ({
       setCipText(String(cipHours ?? ''));
     }
   }, [cipHours]);
-
-  useEffect(() => {
-    const ae = document.activeElement;
-    if (ae !== washHRef.current && ae !== washMRef.current) {
-      const { h, m } = splitWash(cipWashMinutes);
-      setWashHText(h);
-      setWashMText(m);
-    }
-  }, [cipWashMinutes]);
 
   const commitVolume = () => {
     const n = parseInt(volText, 10);
@@ -170,21 +155,6 @@ const ControlPanel = ({
       return;
     }
     setCipHours(n); // App limita 1..720
-  };
-
-  const commitWashDuration = () => {
-    const h = parseInt(washHText, 10);
-    const m = parseInt(washMText, 10);
-    const hh = Number.isNaN(h) ? 0 : Math.max(0, Math.min(12, h));
-    const mm = Number.isNaN(m) ? 0 : Math.max(0, Math.min(59, m));
-    const total = hh * 60 + mm;
-    if (total < 1) {
-      const { h: rh, m: rm } = splitWash(cipWashMinutes); // inválido: volta ao atual
-      setWashHText(rh);
-      setWashMText(rm);
-      return;
-    }
-    setCipWashMinutes(total); // App limita 1..720
   };
 
   // Enter apenas tira o foco; a confirmação acontece no onBlur (caminho único)
@@ -492,41 +462,31 @@ const ControlPanel = ({
               </div>
             </div>
             <div>
-              <p className="text-[11px] text-slate-500 mb-1">Lavagem (h + min)</p>
+              <p className="text-[11px] text-slate-500 mb-1">Lavagem (início → fim)</p>
               <div className="flex gap-1.5">
-                <div className="relative flex-1 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-500 mb-0.5 text-center">início</p>
                   <input
-                    ref={washHRef}
-                    type="number"
-                    min="0"
-                    max="12"
-                    value={washHText}
-                    onChange={(e) => setWashHText(e.target.value)}
-                    onBlur={commitWashDuration}
-                    onKeyDown={blurOnEnter}
-                    className="input-field no-spinner text-center font-mono"
-                    style={{ paddingLeft: 8, paddingRight: 22 }}
-                    placeholder="0"
+                    type="time"
+                    value={cipWashStart || ''}
+                    onChange={(e) => setCipWashStart(e.target.value)}
+                    className="input-field text-center font-mono"
+                    style={{ paddingLeft: 8, paddingRight: 8 }}
                     disabled={locked}
+                    aria-label="Hora inicial da lavagem"
                   />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 text-[11px]">h</span>
                 </div>
-                <div className="relative flex-1 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-500 mb-0.5 text-center">fim</p>
                   <input
-                    ref={washMRef}
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={washMText}
-                    onChange={(e) => setWashMText(e.target.value)}
-                    onBlur={commitWashDuration}
-                    onKeyDown={blurOnEnter}
-                    className="input-field no-spinner text-center font-mono"
-                    style={{ paddingLeft: 8, paddingRight: 30 }}
-                    placeholder="30"
+                    type="time"
+                    value={cipWashEnd || ''}
+                    onChange={(e) => setCipWashEnd(e.target.value)}
+                    className="input-field text-center font-mono"
+                    style={{ paddingLeft: 8, paddingRight: 8 }}
                     disabled={locked}
+                    aria-label="Hora final da lavagem"
                   />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 text-[11px]">min</span>
                 </div>
               </div>
             </div>
@@ -540,6 +500,9 @@ const ControlPanel = ({
             <div className="mt-2">
               <p className="text-center text-sky-200 text-sm font-bold tabular-nums animate-pulse">
                 🛁 Lavando... faltam {formatClockMS(washRemainingMs)}
+              </p>
+              <p className="text-center text-[11px] text-sky-300/80 tabular-nums mt-0.5">
+                🕐 {cipWashStartAt ? fmtHM(cipWashStartAt) : '--:--'} → {cipWashEndsAt ? fmtHM(cipWashEndsAt) : '--:--'}
               </p>
               <button
                 onClick={onCancelCipWash}

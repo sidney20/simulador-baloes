@@ -214,7 +214,7 @@ export function isPristineBalloon(b) {
     (b.expectedAccum || 0) === 0 &&
     !b.estimatedFinishAt && !b.pausedAt &&
     (b.totalPausedMs || 0) === 0 &&
-    !b.cipDoneAt && !b.cipWashEndsAt &&
+    !b.cipDoneAt && !b.cipWashStartAt && !b.cipWashEndsAt &&
     !b.formRecipe && !b.formRunning && !b.formStartAt &&
     (b.formAccumMs || 0) === 0 && !b.formDone &&
     !b.formProductId && (b.formTargetLiters || 0) === 0
@@ -239,6 +239,47 @@ export function shouldPushRemote({ fetchOk, pristine, everDirty, remoteEmpty }) 
   if (!fetchOk) return false;
   if (!pristine) return true;
   return !!(everDirty || remoteEmpty);
+}
+
+/** "14:05" (HH:MM local) a partir de timestamp. Só exibição. */
+export function fmtHM(ms) {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Janela padrão da lavagem: agora → +30min (strings HH:MM). */
+export function defaultWashWindow(nowMs = Date.now()) {
+  return { start: fmtHM(nowMs), end: fmtHM(nowMs + 30 * 60000) };
+}
+
+/** Hoje às HH:MM (ms) ou null se inválido. */
+export function todayAtHM(hm, fromMs = Date.now()) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hm || '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return null;
+  const d = new Date(fromMs);
+  d.setHours(h, min, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * Resolve a janela da lavagem CIP: começa AGORA (registra), termina às HH:MM.
+ * Se o fim já passou, assume amanhã. Mínimo 1 minuto.
+ * Retorna { startAt, endsAt, nextDay } ou { error: 'invalid' | 'short' }.
+ */
+export function resolveWashEnd(endStr, nowMs = Date.now()) {
+  const end = todayAtHM(endStr, nowMs);
+  if (end === null) return { error: 'invalid' };
+  let endsAt = end;
+  let nextDay = false;
+  if (endsAt <= nowMs) {
+    endsAt += 86400000;
+    nextDay = true;
+  }
+  if (endsAt - nowMs < 60000) return { error: 'short' };
+  return { startAt: nowMs, endsAt, nextDay };
 }
 
 /** "04:37" (mm:ss) a partir de milissegundos. Só exibição. */

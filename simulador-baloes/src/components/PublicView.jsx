@@ -260,6 +260,7 @@ const PublicView = ({ token }) => {
                   cipHours={b.cipHours}
                   cipDoneAt={b.cipDoneAt ?? null}
                   cipWashing={b.cipWashing}
+                  cipWashStartAt={b.cipWashStartAt ?? null}
                   cipWashEndsAt={b.cipWashEndsAt ?? null}
                   formulation={b.formRecipe ? { recipe: b.formRecipe, running: !!b.formRunning, startAt: b.formStartAt ?? null, accumMs: b.formAccumMs || 0, done: !!b.formDone } : null}
                   refColor={pubColorOf(b)}

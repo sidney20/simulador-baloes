@@ -26,6 +26,7 @@ create table if not exists public.tanks (
   cip_hours double precision not null default 72,
   cip_done_at timestamptz,
   cip_washing boolean not null default false,
+  cip_wash_start_at timestamptz,
   cip_wash_ends_at timestamptz,
   cip_wash_minutes double precision not null default 5,
   form_recipe text,

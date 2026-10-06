@@ -64,8 +64,7 @@ export const LOW_LEVEL_THRESHOLD = 300;
 // CIP (limpeza): validade padrão em horas após realizado
 export const DEFAULT_CIP_HOURS = 72;
 
-// Lavagem CIP: duração padrão em minutos (balão vazio, spray ball 360°)
-export const DEFAULT_CIP_WASH_MINUTES = 5;
+// Lavagem CIP: janela início/fim em HH:MM (helpers em simulation.js)
 
 // FORMULAÇÃO DO PRODUTO: durações das receitas em SEGUNDOS (central).
 // normal = 1h50min = 110min · grande = 2h50min = 170min

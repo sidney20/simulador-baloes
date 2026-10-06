@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCTS, LOW_LEVEL_THRESHOLD, RECIPES } from '../constants';
-import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS } from '../simulation';
+import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS, fmtHM } from '../simulation';
 import SprayBall360 from './SprayBall360';
 
 // Geometria interna do vidro (coordenadas do viewBox 0 0 250 520)
@@ -40,6 +40,7 @@ const Balloon = ({
   cipHours,
   cipDoneAt,
   cipWashing,
+  cipWashStartAt,
   cipWashEndsAt,
   formulation,
   refColor,
@@ -548,7 +549,7 @@ const Balloon = ({
             🛁 LAVAGEM CIP EM ANDAMENTO
           </p>
           <p className="text-[11px] text-sky-300/80 tabular-nums">
-            spray ball 360° · faltam {formatClockMS((cipWashEndsAt || 0) - nowTick)}
+            🕐 {cipWashStartAt ? fmtHM(cipWashStartAt) : '--:--'} → {cipWashEndsAt ? fmtHM(cipWashEndsAt) : '--:--'} · faltam {formatClockMS((cipWashEndsAt || 0) - nowTick)}
           </p>
         </div>
       )}
