@@ -197,11 +197,15 @@ const App = () => {
   // Nuvem: throttle de ~1s (envio contínuo, inclusive rodando).
   // Debounce puro nunca dispararia com o envase ativo (muda a cada 1s).
   const lastPush = useRef(0);
+  // Status do envio p/ diagnóstico visível (hora do último OK / falha)
+  const [cloudStatus, setCloudStatus] = useState({ state: 'idle', at: null });
   useEffect(() => {
     if (!isSupabaseEnabled || !cloudReady) return;
     const doPush = () => {
       lastPush.current = Date.now();
-      pushRemoteBalloons(balloonsRef.current).catch(() => {});
+      pushRemoteBalloons(balloonsRef.current)
+        .then((ok) => setCloudStatus({ state: ok ? 'ok' : 'error', at: Date.now() }))
+        .catch(() => setCloudStatus({ state: 'error', at: Date.now() }));
     };
     if (Date.now() - lastPush.current >= 1000) {
       doPush();
@@ -1073,6 +1077,17 @@ const App = () => {
           {savedAt && (
             <p className="text-xs text-slate-500 mt-4 tabular-nums">
               💾 Estado salvo localmente às {new Date(savedAt).toLocaleTimeString('pt-BR')} — níveis exatos preservados
+              {isSupabaseEnabled && (
+                <span className="ml-2">
+                  {cloudStatus.state === 'ok' && cloudStatus.at ? (
+                    <span className="text-green-400">☁️ sincronizado às {new Date(cloudStatus.at).toLocaleTimeString('pt-BR')}</span>
+                  ) : cloudStatus.state === 'error' ? (
+                    <span className="text-red-400">☁️ falha de envio — verifique internet/Supabase</span>
+                  ) : (
+                    <span className="text-slate-500">☁️ aguardando envio...</span>
+                  )}
+                </span>
+              )}
             </p>
           )}
         </div>
