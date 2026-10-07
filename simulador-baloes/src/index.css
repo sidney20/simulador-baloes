@@ -163,7 +163,8 @@
   @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300;
 }
 
-/* ============ SPRAY BALL 360° (lavagem CIP) ============ */
+/* ============ CIP INDUSTRIAL REALISTA (spray ball sanitário) ============ */
+/* SOMENTE VISUAL — nenhuma lógica, cálculo ou comportamento é alterado aqui */
 .spray360 {
   position: absolute;
   top: 12%;
@@ -174,116 +175,172 @@
   pointer-events: none;
   user-select: none;
 }
-/* Interior BEM escuro p/ os filetes saltarem (estilo referência) */
+/* Interior do tanque: sombra neutra sutil (sem neon) */
 .spray-tint {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(2, 12, 24, 0.78), rgba(2, 12, 24, 0.62) 50%, rgba(2, 12, 24, 0.78));
+  background: linear-gradient(to bottom, rgba(10, 15, 25, 0.5), rgba(10, 15, 25, 0.34) 50%, rgba(10, 15, 25, 0.5));
 }
-/* Névoa atrás da bola */
-.spray-mist {
-  position: absolute;
-  left: calc(50% - 85px);
-  top: calc(40% - 85px);
-  width: 170px;
-  height: 170px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(125, 211, 252, 0.42), rgba(56, 189, 248, 0) 70%);
-  animation: jetFlicker 2.2s ease-in-out infinite;
-}
-/* Cano de inox vindo do topo até a bola */
+/* Tubo de alimentação em inox com flanges sanitárias */
 .spray-pipe {
   position: absolute;
-  left: calc(50% - 4px);
+  left: calc(50% - 5px);
   top: -2%;
-  width: 8px;
+  width: 10px;
   height: 44%;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #3f3f46, #a1a1aa 25%, #ffffff 50%, #a1a1aa 75%, #3f3f46);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  background: linear-gradient(90deg, #4b5563, #9ca3af 30%, #d1d5db 50%, #9ca3af 70%, #4b5563);
 }
-/* Grupo dos 20 filetes — gira devagar (360°) */
+/* Flanges (tri-clamp) onde o tubo entra no tanque */
+.cip-flange {
+  position: absolute;
+  left: calc(50% - 15px);
+  width: 30px;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #d1d5db, #6b7280 60%, #374151);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.cip-flange-f1 { top: 5%; }
+.cip-flange-f2 { top: 11%; }
+/* Fio de produto descendo DENTRO do tubo (fluxo natural, sem brilho) */
+.cip-pipeflow {
+  position: absolute;
+  left: 50%;
+  margin-left: -1.5px;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(to bottom, rgba(203, 213, 225, 0.6) 0 5px, rgba(203, 213, 225, 0.12) 5px 11px);
+  animation: flowDown 1.4s linear infinite;
+}
+@keyframes flowDown {
+  from { background-position-y: 0; }
+  to { background-position-y: 22px; }
+}
+/* Cabeça rotativa de limpeza (domo inox, peça sanitária real) */
+.spray-ball {
+  position: absolute;
+  left: calc(50% - 20px);
+  top: calc(40% - 20px);
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1px solid rgba(209, 213, 219, 0.5);
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.85) 0 3px, rgba(255, 255, 255, 0) 6px),
+    radial-gradient(rgba(30, 41, 59, 0.9) 1.6px, transparent 1.7px) 0 0 / 10px 10px,
+    radial-gradient(circle at 42% 38%, #cbd5e1, #7d8aa0 58%, #2f3642 100%);
+  box-shadow: inset -3px -5px 8px rgba(0, 0, 0, 0.35), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+/* Anel de bocais girando devagar ao redor da cabeça */
+.cip-rotor {
+  position: absolute;
+  left: calc(50% - 29px);
+  top: calc(40% - 29px);
+  width: 58px;
+  height: 58px;
+  border-radius: 9999px;
+  border: 4px dashed rgba(203, 213, 225, 0.55);
+  animation: sprayRotate 26s linear infinite;
+}
+/* Grupo dos jatos naturais — rotação lenta de cabeça rotativa real */
 .spray-jets {
   position: absolute;
   left: 50%;
   top: 40%;
   width: 0;
   height: 0;
-  animation: sprayRotate 16s linear infinite;
+  animation: sprayRotate 26s linear infinite;
 }
-/* Cada filete: fio FINO pontilhado de gotículas (só pisca, sem mexer no rotate) */
+/* Cada jato: filete fino e fosco com fade natural (sem glow, sem pontos) */
 .spray-jet {
   position: absolute;
   left: -1px;
-  top: 10px;
+  top: 8px;
   width: 2px;
-  height: 170px;
+  height: 88px;
   transform-origin: 50% 0;
   border-radius: 2px;
-  background:
-    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0 1.5px, rgba(255, 255, 255, 0) 1.5px 6px),
-    linear-gradient(to bottom, rgba(224, 242, 254, 0.9), rgba(125, 211, 252, 0.5) 45%, rgba(56, 189, 248, 0.06));
-  box-shadow: 0 0 7px rgba(186, 230, 253, 0.9), 0 0 18px rgba(56, 189, 248, 0.4);
-  animation: jetFlicker 0.9s ease-in-out infinite;
+  background: linear-gradient(to bottom, rgba(226, 232, 240, 0.7), rgba(203, 213, 225, 0.35) 55%, rgba(203, 213, 225, 0));
+  opacity: 0.75;
 }
-/* Comprimentos alternados: estrela mais natural, como na referência */
 .spray-jets .spray-jet:nth-child(even) {
-  height: 128px;
+  height: 64px;
 }
-/* Lençol de água batendo na parede e ESCORRENDO para baixo (fluxo animado) */
+/* Lâmina de água escorrendo pela parede (fluxo calmo para baixo) */
 .spray-sheet {
   position: absolute;
-  top: 26%;
+  top: 28%;
   bottom: 2%;
-  width: 24px;
-  border-radius: 12px;
+  width: 12px;
+  border-radius: 6px;
   background:
-    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0 7px, rgba(255, 255, 255, 0.15) 7px 17px),
-    linear-gradient(to bottom, rgba(186, 230, 253, 0.45), rgba(186, 230, 253, 0.7));
-  box-shadow: 0 0 18px rgba(186, 230, 253, 0.95), inset 0 0 10px rgba(255, 255, 255, 0.6);
-  filter: blur(0.5px);
-  animation: sheetFlow 0.9s linear infinite;
-  opacity: 0.95;
+    repeating-linear-gradient(to bottom, rgba(226, 232, 240, 0.5) 0 8px, rgba(226, 232, 240, 0.14) 8px 20px),
+    linear-gradient(to bottom, rgba(203, 213, 225, 0.22), rgba(203, 213, 225, 0.4));
+  animation: sheetFlow 1.8s linear infinite;
+  opacity: 0.8;
 }
-.spray-sheet-l { left: 1%; }
-.spray-sheet-r { right: 1%; animation-delay: 0.5s; }
+.spray-sheet-l { left: 2%; }
+.spray-sheet-r { right: 2%; animation-delay: 0.9s; }
 @keyframes sheetFlow {
   from { background-position-y: 0, 0; }
-  to { background-position-y: 32px, 0; }
+  to { background-position-y: 40px, 0; }
 }
-/* Bola metálica com furinhos e aro brilhante */
-.spray-ball {
-  position: absolute;
-  left: calc(50% - 23px);
-  top: calc(40% - 23px);
-  width: 46px;
-  height: 46px;
-  border-radius: 9999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.75);
-  background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 1) 0 4px, rgba(255, 255, 255, 0) 7px),
-    radial-gradient(rgba(2, 6, 16, 0.95) 2px, transparent 2.1px) 0 0 / 11px 11px,
-    radial-gradient(circle at 40% 35%, #f1f5f9, #94a3b8 55%, #1e293b 100%);
-  box-shadow: 0 0 28px rgba(186, 230, 253, 0.95), 0 0 60px rgba(56, 189, 248, 0.45), inset -4px -6px 10px rgba(0, 0, 0, 0.4);
-  animation: ballSpin 9s linear infinite;
-}
-/* Trilhas de água escorrendo pela parede interna */
+/* Trilhas de água escorrendo pela parede interna (sutis) */
 .spray-drip {
   position: absolute;
-  top: 34%;
-  width: 8px;
-  height: 60%;
-  border-radius: 4px;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75) 30%, #ffffff);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  top: 36%;
+  width: 6px;
+  height: 58%;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, rgba(226, 232, 240, 0), rgba(226, 232, 240, 0.45) 35%, rgba(226, 232, 240, 0.7));
   opacity: 0;
-  animation: drip 2.4s linear infinite;
+  animation: drip 3.4s linear infinite;
 }
-.spray-drip-l1 { left: 4%; }
-.spray-drip-l2 { left: 10%; height: 52%; animation-delay: 1.1s; }
-.spray-drip-r1 { right: 4%; animation-delay: 0.6s; }
-.spray-drip-r2 { right: 10%; height: 55%; animation-delay: 1.7s; }
-/* Texto com opacidade baixa, abaixo da bola (sem sobrepor nada) */
+.spray-drip-l1 { left: 5%; }
+.spray-drip-l2 { left: 11%; height: 50%; animation-delay: 1.6s; }
+.spray-drip-r1 { right: 5%; animation-delay: 0.8s; }
+.spray-drip-r2 { right: 11%; height: 53%; animation-delay: 2.4s; }
+/* Ralo de drenagem no fundo + fluxo de saída */
+.cip-drain {
+  position: absolute;
+  left: calc(50% - 13px);
+  top: 91%;
+  width: 26px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #9ca3af, #4b5563);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.cip-drainflow {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 93%;
+  width: 4px;
+  height: 7%;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, rgba(203, 213, 225, 0.55), rgba(203, 213, 225, 0));
+}
+.cip-drop {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 91%;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(226, 232, 240, 0.7);
+  opacity: 0;
+  animation: dropFall 1.8s linear infinite;
+}
+.cip-drop-d2 { animation-delay: 0.9s; }
+@keyframes dropFall {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translateY(26px); opacity: 0; }
+}
+/* Texto com opacidade baixa, sem brilho */
 .spray-emcip {
   position: absolute;
   left: 0;
@@ -292,24 +349,21 @@
   text-align: center;
 }
 .spray-emcip span {
-  color: rgba(224, 242, 254, 0.75);
+  color: rgba(203, 213, 225, 0.5);
   font-weight: 800;
   letter-spacing: 0.3em;
-  font-size: 26px;
+  font-size: 22px;
   font-family: ui-monospace, Consolas, monospace;
-  text-shadow: 0 0 16px rgba(56, 189, 248, 0.8), 0 2px 6px rgba(0, 0, 0, 0.6);
-  animation: emcipPulse 2.6s ease-in-out infinite;
+  animation: emcipPulse 3.2s ease-in-out infinite;
 }
 @keyframes sprayRotate { to { transform: rotate(360deg); } }
-  @keyframes jetFlicker { 0%, 100% { opacity: 0.62; } 50% { opacity: 1; } }
-@keyframes ballSpin { to { transform: rotate(360deg); } }
 @keyframes drip {
   0% { transform: translateY(-20%); opacity: 0; }
-  15% { opacity: 0.8; }
-  85% { opacity: 0.7; }
+  15% { opacity: 0.55; }
+  85% { opacity: 0.5; }
   100% { transform: translateY(20%); opacity: 0; }
 }
-@keyframes emcipPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes emcipPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.85; } }
 
 /* ============ FORMULAÇÃO DO PRODUTO (cano + fluxo descendo) ============ */
 /* Cano de alimentação no topo, conectado ao balão */

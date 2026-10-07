@@ -244,14 +244,18 @@ const Balloon = ({
         >
           <defs>
             <linearGradient id={`steel${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#3b4252" />
-              <stop offset="12%" stopColor="#7d8aa0" />
-              <stop offset="28%" stopColor="#d7dee8" />
-              <stop offset="42%" stopColor="#ffffff" />
-              <stop offset="58%" stopColor="#c3ccd8" />
-              <stop offset="78%" stopColor="#6b7688" />
-              <stop offset="100%" stopColor="#2f3642" />
+              <stop offset="0%" stopColor="#333a45" />
+              <stop offset="12%" stopColor="#6e7a8c" />
+              <stop offset="28%" stopColor="#c2cad4" />
+              <stop offset="42%" stopColor="#eef1f5" />
+              <stop offset="58%" stopColor="#b9c1cc" />
+              <stop offset="78%" stopColor="#5b6472" />
+              <stop offset="100%" stopColor="#2b313b" />
             </linearGradient>
+            <pattern id={`brushed${id}`} width="4" height="3" patternUnits="userSpaceOnUse">
+              <rect width="4" height="3" fill="transparent" />
+              <line x1="0" y1="1" x2="4" y2="1" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            </pattern>
             <linearGradient id={`lidV${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#f1f5f9" />
               <stop offset="55%" stopColor="#94a3b8" />
@@ -290,12 +294,13 @@ const Balloon = ({
           <ellipse cx={160} cy={30} rx={22} ry={6} fill="#f1f5f9" opacity={0.85} />
           <rect x={150} y={86} width={20} height={7} fill="#000000" opacity={0.3} />
 
-          {/* Corpo inox */}
+          {/* Corpo inox escovado fosco (sem brilho exagerado) */}
           <path d={TANK_PATH} fill={`url(#steel${id})`} />
+          <path d={TANK_PATH} fill={`url(#brushed${id})`} />
           <path d={TANK_PATH} fill={`url(#shade${id})`} />
-          {/* Faixa de brilho vertical (reflexo) */}
-          <rect x={100} y={120} width={14} height={300} rx={7} fill="#ffffff" opacity={0.22} />
-          <rect x={198} y={140} width={7} height={260} rx={3.5} fill="#ffffff" opacity={0.12} />
+          {/* Reflexos metálicos sutis */}
+          <rect x={100} y={120} width={14} height={300} rx={7} fill="#ffffff" opacity={0.13} />
+          <rect x={198} y={140} width={7} height={260} rx={3.5} fill="#ffffff" opacity={0.07} />
 
           {/* VAZIO = TODO PRATA (metálico, nunca branco) */}
           {!formActive && isEmpty && (
@@ -399,12 +404,12 @@ const Balloon = ({
         </div>
       </div>
 
-      {/* Caixa de valor sobre a base do tanque */}
-      <div className="w-3/4 -mt-12 relative z-10 mx-auto text-center px-4 py-2 rounded-xl bg-slate-950/90 border border-slate-700/60 shadow-xl">
-        <p className="text-2xl font-bold font-mono text-white tabular-nums">
+      {/* Caixa de valor estilo painel HMI sobre a base do tanque */}
+      <div className="w-3/4 -mt-12 relative z-10 mx-auto text-center px-4 py-2 rounded-lg bg-[#0a0f16] border border-slate-600/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_12px_rgba(0,0,0,0.5)]">
+        <p className="text-2xl font-bold font-mono tracking-wider text-slate-100 tabular-nums">
           {isEmpty ? 'VAZIO' : `${fmtL1(currentVolume)} L`}
         </p>
-        <p className="text-sm font-mono font-bold text-cyan-300 tabular-nums">
+        <p className="text-sm font-mono font-bold tracking-widest text-cyan-300 tabular-nums">
           {isEmpty ? '0%' : `${percentage.toFixed(1)}%`}
         </p>
       </div>
