@@ -6,27 +6,27 @@ import { PRODUCTS, LOW_LEVEL_THRESHOLD, RECIPES } from '../constants';
 import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS } from '../simulation';
 import SprayBall360 from './SprayBall360';
 
-// Geometria do tanque inox (viewBox 0 0 250 520)
-const INNER = { left: 57, right: 123, top: 84, bottom: 480 };
+// Geometria do tanque inox LARGO (viewBox 0 0 320 480) — estilo supervisório
+const INNER = { left: 94, right: 226, top: 100, bottom: 434 };
 const INNER_W = INNER.right - INNER.left;
 const INNER_H = INNER.bottom - INNER.top;
 
 const TANK_PATH =
-  'M 56 100 C 54 80, 62 68, 76 64 L 104 64 C 118 68, 126 80, 124 100 L 124 438 C 124 464, 114 480, 98 485 L 82 485 C 66 480, 56 464, 56 438 Z';
+  'M 89 130 C 87 108, 96 94, 112 90 L 208 90 C 224 94, 233 108, 231 130 L 231 400 C 231 424, 220 436, 200 440 L 120 440 C 100 436, 89 424, 89 400 Z';
 const INNER_PATH =
-  'M 61 102 C 59 84, 66 74, 77 70 L 103 70 C 114 74, 121 84, 119 102 L 119 436 C 119 460, 111 474, 97 479 L 83 479 C 69 474, 61 460, 61 436 Z';
+  'M 94 132 C 92 112, 100 100, 113 96 L 207 96 C 220 100, 228 112, 226 132 L 226 398 C 226 420, 217 431, 201 434 L 119 434 C 103 431, 94 420, 94 398 Z';
 
 const BUBBLES = [
-  { cx: 70, r: 3, delay: '0s', dur: '3.2s' },
-  { cx: 82, r: 2.4, delay: '0.8s', dur: '2.6s' },
-  { cx: 94, r: 3.4, delay: '1.6s', dur: '3.8s' },
-  { cx: 106, r: 2.6, delay: '0.4s', dur: '2.9s' },
-  { cx: 76, r: 2, delay: '2.1s', dur: '3.4s' },
-  { cx: 100, r: 2.8, delay: '1.1s', dur: '3s' },
+  { cx: 108, r: 3, delay: '0s', dur: '3.2s' },
+  { cx: 128, r: 2.4, delay: '0.8s', dur: '2.6s' },
+  { cx: 148, r: 3.4, delay: '1.6s', dur: '3.8s' },
+  { cx: 168, r: 2.6, delay: '0.4s', dur: '2.9s' },
+  { cx: 188, r: 2, delay: '2.1s', dur: '3.4s' },
+  { cx: 118, r: 2.8, delay: '1.1s', dur: '3s' },
 ];
 
 const TIERS = [100, 75, 50, 25, 0];
-const rulerY = (p) => 486 - (p / 100) * 416;
+const rulerY = (p) => 440 - (p / 100) * 350;
 
 const Balloon = ({
   id,
@@ -167,7 +167,7 @@ const Balloon = ({
         opacity={0.55}
         className="animate-pulse"
       />
-      <ellipse cx={90} cy={top} rx={28} ry={3} fill="#ffffff" opacity={0.22} />
+      <ellipse cx={160} cy={top} rx={55} ry={4} fill="#ffffff" opacity={0.22} />
     </>
   );
 
@@ -180,10 +180,20 @@ const Balloon = ({
             <p className="text-[11px] font-medium tracking-widest text-slate-500">UNIDADE TRIÂNGULO</p>
             <h3 className="text-xl font-bold text-white tracking-tight">{name}</h3>
           </div>
-          <span className={`mt-1 px-3 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 shrink-0 ${status.cls}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            {status.label}
-          </span>
+          <div className="flex items-center gap-2 mt-1 shrink-0">
+            <div
+              title={isLow ? 'Nível baixo!' : 'Nível OK'}
+              className={`w-6 h-6 rounded-full border-2 ${
+                isLow
+                  ? 'bg-gradient-to-br from-red-400 to-red-700 border-red-300 animate-alarm'
+                  : 'bg-slate-700/60 border-slate-600'
+              }`}
+            />
+            <span className={`px-3 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 ${status.cls}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+              {status.label}
+            </span>
+          </div>
         </div>
         <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60">
           <span
@@ -225,23 +235,11 @@ const Balloon = ({
         )}
       </div>
 
-      {/* Giroflex de alerta — aceso e piscando em nível baixo */}
-      <div className="flex flex-col items-center -mb-1" title={isLow ? 'Nível baixo!' : 'Nível OK'}>
-        <div
-          className={`w-9 h-9 rounded-full border-2 ${
-            isLow
-              ? 'bg-gradient-to-br from-red-400 to-red-700 border-red-300 animate-alarm'
-              : 'bg-slate-700/60 border-slate-600'
-          }`}
-        />
-        <div className="w-2 h-2 bg-slate-600 rounded-b" />
-      </div>
-
       <div className="w-full flex justify-center">
         <div className="relative">
         <svg
-          viewBox="0 0 250 520"
-          className="h-[380px] sm:h-[440px] w-auto max-w-full"
+          viewBox="0 0 320 480"
+          className="w-full max-w-[300px] h-auto"
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
@@ -287,17 +285,17 @@ const Balloon = ({
           </defs>
 
           {/* Tampa + gargalo inox */}
-          <rect x={72} y={40} width={16} height={28} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.25)" />
-          <rect x={62} y={28} width={36} height={13} rx={3} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.3)" />
-          <ellipse cx={80} cy={28} rx={18} ry={5} fill="#f1f5f9" opacity={0.85} />
-          <rect x={72} y={60} width={16} height={7} fill="#000000" opacity={0.3} />
+          <rect x={150} y={44} width={20} height={48} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.25)" />
+          <rect x={138} y={30} width={44} height={14} rx={3} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.3)" />
+          <ellipse cx={160} cy={30} rx={22} ry={6} fill="#f1f5f9" opacity={0.85} />
+          <rect x={150} y={86} width={20} height={7} fill="#000000" opacity={0.3} />
 
           {/* Corpo inox */}
           <path d={TANK_PATH} fill={`url(#steel${id})`} />
           <path d={TANK_PATH} fill={`url(#shade${id})`} />
           {/* Faixa de brilho vertical (reflexo) */}
-          <rect x={62} y={96} width={11} height={360} rx={5.5} fill="#ffffff" opacity={0.22} />
-          <rect x={108} y={110} width={5} height={320} rx={2.5} fill="#ffffff" opacity={0.12} />
+          <rect x={100} y={120} width={14} height={300} rx={7} fill="#ffffff" opacity={0.22} />
+          <rect x={198} y={140} width={7} height={260} rx={3.5} fill="#ffffff" opacity={0.12} />
 
           {/* VAZIO = TODO PRATA (metálico, nunca branco) */}
           {!formActive && isEmpty && (
@@ -305,7 +303,7 @@ const Balloon = ({
               <rect x={INNER.left} y={INNER.top} width={INNER_W} height={INNER_H} fill={`url(#silver${id})`} />
               <rect x={INNER.left} y={INNER.top} width={INNER_W} height={INNER_H} fill={`url(#edge${id})`} />
               {!cipWashing && (
-                <text x={90} y={290} textAnchor="middle" fill="#475569" fontSize={17} fontWeight={700} fontFamily="monospace" letterSpacing={3}>
+                <text x={160} y={300} textAnchor="middle" fill="#475569" fontSize={19} fontWeight={700} fontFamily="monospace" letterSpacing={3}>
                   VAZIO
                 </text>
               )}
@@ -353,18 +351,18 @@ const Balloon = ({
 
           {/* Régua: litros (esq) + % (dir) */}
           <g>
+            <line x1={238} y1={90} x2={238} y2={440} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5,5" />
             {TIERS.map((p) => {
               const y = rulerY(p);
               const value = Math.round((capacity * p) / 100);
               return (
                 <g key={p}>
-                  <line x1={44} y1={y} x2={52} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-                  <text x={40} y={y + 3.5} fill="#cbd5e1" fontSize={9} fontFamily="monospace" fontWeight={600} textAnchor="end">
+                  <line x1={76} y1={y} x2={85} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                  <text x={72} y={y + 3.5} fill="#cbd5e1" fontSize={10} fontFamily="monospace" fontWeight={600} textAnchor="end">
                     {value.toLocaleString('pt-BR')}
                   </text>
-                  <line x1={140} y1={70} x2={140} y2={486} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5,5" opacity={p === 100 ? 1 : 0} />
-                  <line x1={140} y1={y} x2={148} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-                  <text x={152} y={y + 3.5} fill="#94a3b8" fontSize={9} fontFamily="monospace">
+                  <line x1={238} y1={y} x2={247} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                  <text x={251} y={y + 3.5} fill="#94a3b8" fontSize={10} fontFamily="monospace">
                     {p} %
                   </text>
                 </g>
