@@ -169,8 +169,8 @@
   position: absolute;
   top: 12%;
   bottom: 5%;
-  left: 26%;
-  right: 29%;
+  left: 27%;
+  right: 28%;
   overflow: hidden;
   pointer-events: none;
   user-select: none;
@@ -282,8 +282,8 @@
   animation: sheetFlow 1.8s linear infinite;
   opacity: 0.8;
 }
-.spray-sheet-l { left: 2%; }
-.spray-sheet-r { right: 2%; animation-delay: 0.9s; }
+.spray-sheet-l { left: 8%; }
+.spray-sheet-r { right: 8%; animation-delay: 0.9s; }
 @keyframes sheetFlow {
   from { background-position-y: 0, 0; }
   to { background-position-y: 40px, 0; }
@@ -299,10 +299,10 @@
   opacity: 0;
   animation: drip 3.4s linear infinite;
 }
-.spray-drip-l1 { left: 5%; }
-.spray-drip-l2 { left: 11%; height: 50%; animation-delay: 1.6s; }
-.spray-drip-r1 { right: 5%; animation-delay: 0.8s; }
-.spray-drip-r2 { right: 11%; height: 53%; animation-delay: 2.4s; }
+.spray-drip-l1 { left: 12%; }
+.spray-drip-l2 { left: 18%; height: 50%; animation-delay: 1.6s; }
+.spray-drip-r1 { right: 12%; animation-delay: 0.8s; }
+.spray-drip-r2 { right: 18%; height: 53%; animation-delay: 2.4s; }
 /* Ralo de drenagem no fundo + fluxo de saída */
 .cip-drain {
   position: absolute;
