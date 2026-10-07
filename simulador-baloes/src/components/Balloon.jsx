@@ -3,27 +3,30 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCTS, LOW_LEVEL_THRESHOLD, RECIPES } from '../constants';
-import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS, fmtHM } from '../simulation';
+import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS } from '../simulation';
 import SprayBall360 from './SprayBall360';
 
-// Geometria interna do vidro (coordenadas do viewBox 0 0 250 520)
-const INNER = { left: 29, right: 131, top: 66, bottom: 488 };
+// Geometria do tanque inox (viewBox 0 0 250 520)
+const INNER = { left: 57, right: 123, top: 84, bottom: 480 };
 const INNER_W = INNER.right - INNER.left;
 const INNER_H = INNER.bottom - INNER.top;
 
-const GLASS_PATH =
-  'M 34 60 C 26 90, 24 120, 24 160 L 24 440 C 24 472, 28 488, 40 494 L 120 494 C 132 488, 136 472, 136 440 L 136 160 C 136 120, 134 90, 126 60 Z';
+const TANK_PATH =
+  'M 56 100 C 54 80, 62 68, 76 64 L 104 64 C 118 68, 126 80, 124 100 L 124 438 C 124 464, 114 480, 98 485 L 82 485 C 66 480, 56 464, 56 438 Z';
 const INNER_PATH =
-  'M 39 66 C 31 95, 29 125, 29 162 L 29 438 C 29 468, 33 482, 43 488 L 117 488 C 127 482, 131 468, 131 438 L 131 162 C 131 125, 129 95, 121 66 Z';
+  'M 61 102 C 59 84, 66 74, 77 70 L 103 70 C 114 74, 121 84, 119 102 L 119 436 C 119 460, 111 474, 97 479 L 83 479 C 69 474, 61 460, 61 436 Z';
 
 const BUBBLES = [
-  { cx: 52, r: 3.5, delay: '0s', dur: '3.2s' },
-  { cx: 70, r: 2.5, delay: '0.8s', dur: '2.6s' },
-  { cx: 88, r: 4, delay: '1.6s', dur: '3.8s' },
-  { cx: 104, r: 2.8, delay: '0.4s', dur: '2.9s' },
-  { cx: 62, r: 2, delay: '2.1s', dur: '3.4s' },
-  { cx: 96, r: 3, delay: '1.1s', dur: '3s' },
+  { cx: 70, r: 3, delay: '0s', dur: '3.2s' },
+  { cx: 82, r: 2.4, delay: '0.8s', dur: '2.6s' },
+  { cx: 94, r: 3.4, delay: '1.6s', dur: '3.8s' },
+  { cx: 106, r: 2.6, delay: '0.4s', dur: '2.9s' },
+  { cx: 76, r: 2, delay: '2.1s', dur: '3.4s' },
+  { cx: 100, r: 2.8, delay: '1.1s', dur: '3s' },
 ];
+
+const TIERS = [100, 75, 50, 25, 0];
+const rulerY = (p) => 486 - (p / 100) * 416;
 
 const Balloon = ({
   id,
@@ -51,25 +54,7 @@ const Balloon = ({
   const percentage = isEmpty ? 0 : Math.max(0, Math.min(100, (currentVolume / capacity) * 100));
   const hasLiquidEnvase = !product.isEmpty && percentage > 0;
 
-  // Topo do líquido dentro do vidro (100% = topo interno, 0% = fundo interno)
-  const liquidTop = INNER.bottom - (INNER_H * percentage) / 100;
-  const liquidHeight = Math.max(0, INNER.bottom - liquidTop);
-
-  const rulerTicks = [];
-  for (let p = 0; p <= 100; p += 10) {
-    rulerTicks.push({
-      percent: p,
-      y: 495 - (p / 100) * 440,
-      value: Math.round((capacity * p) / 100),
-    });
-  }
-
-  const waveD = `M -30 ${liquidTop.toFixed(1)} C -10 ${(liquidTop - 7).toFixed(1)}, 10 ${(liquidTop - 7).toFixed(1)}, 30 ${liquidTop.toFixed(1)} S 70 ${(liquidTop + 7).toFixed(1)}, 90 ${liquidTop.toFixed(1)} S 130 ${(liquidTop - 7).toFixed(1)}, 150 ${liquidTop.toFixed(1)} S 190 ${(liquidTop + 7).toFixed(1)}, 210 ${liquidTop.toFixed(1)} L 210 ${(liquidTop + 12).toFixed(1)} L -30 ${(liquidTop + 12).toFixed(1)} Z`;
-
-  // ETA TRAVADA (estimatedFinishAt): calculada uma única vez no PLAY.
-  // Este componente SÓ exibe o valor guardado — nunca recalcula.
-  // Relógio ao vivo: atualiza a cada segundo p/ o countdown do CIP descer
-  // na tela mesmo com o balão parado (a ETA travada NÃO se mexe).
+  // Relógio ao vivo (countdowns). A ETA travada NÃO se mexe.
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNowTick(Date.now()), 1000);
@@ -77,35 +62,129 @@ const Balloon = ({
   }, []);
   const cip = cipStatus(cipDoneAt, cipHours, nowTick);
 
-  // Alerta de nível baixo: giroflex vermelho com 300 L ou menos (e não vazio)
+  // Alerta de nível baixo
   const isLow = !isEmpty && currentVolume <= LOW_LEVEL_THRESHOLD;
 
   // FORMULAÇÃO: sessão ativa assume o visual (fill por progresso + cano).
-  // Não mexe no volume do envase — é representação visual do preparo.
   const formActive = hasFormSession(formulation);
   const formPct = formActive ? formProgress(formulation, nowTick) : 0;
   const formElapsed = formActive ? formElapsedMs(formulation, nowTick) : 0;
   const formTotal = formActive ? recipeDurationMs(formulation.recipe) : 0;
-  // Nível proporcional à meta em litros (enche até a quantidade da receita)
   const formTarget = Math.max(0, Number(formTargetLiters) || 0);
   const formFrac = formActive && capacity > 0
     ? Math.max(0, Math.min(1, (formPct * formTarget) / capacity))
     : 0;
-  // Quantidade da receita que ainda falta formular (vai SUMINDO ao vivo)
   const formRemaining = Math.max(0, formTarget * (1 - formPct));
-  const formTop = INNER.bottom - INNER_H * formFrac;
-  const formHeight = Math.max(0, INNER.bottom - formTop);
-  const formSurfaceBoxPct = 100 - formFrac * 100; // aprox. na caixa do overlay
-  const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
-  const fmtL1 = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   // Líquido do envase some quando a formulação assume o visual
   const hasLiquid = !formActive && hasLiquidEnvase;
+  const fmtL1 = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  // Nível do envase
+  const liquidTop = INNER.bottom - (INNER_H * percentage) / 100;
+  const liquidHeight = Math.max(0, INNER.bottom - liquidTop);
+  // Nível da formulação (proporcional à meta em litros)
+  const formTop = INNER.bottom - INNER_H * formFrac;
+  const formHeight = Math.max(0, INNER.bottom - formTop);
+  const formSurfaceBoxPct = 100 - formFrac * 100;
+  const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
+
+  // Pílula de status do cabeçalho
+  const status = cipWashing
+    ? { label: 'LAVANDO', cls: 'bg-sky-600/30 text-sky-300 border-sky-500/40' }
+    : formActive
+      ? { label: 'FORMULANDO', cls: 'bg-violet-600/30 text-violet-300 border-violet-500/40' }
+      : isRunning
+        ? { label: 'RODANDO', cls: 'bg-green-600/30 text-green-400 border-green-500/40' }
+        : isEmpty
+          ? { label: 'VAZIO', cls: 'bg-red-600/30 text-red-400 border-red-500/40' }
+          : isLow
+            ? { label: 'NÍVEL BAIXO', cls: 'bg-red-600/30 text-red-300 border-red-500/40' }
+            : { label: 'PARADO', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
+
+  // Faixa CIP + barra de estado estilo supervisório
+  const cipStrip = cipWashing
+    ? null
+    : cip.state === 'expired'
+      ? { left: '🔴 CIP VENCIDO', right: 'realize a lavagem', cls: 'text-red-400' }
+      : cip.state === 'valid'
+        ? { left: '🟢 CIP VÁLIDO', right: `vence ${formatCountdownFull(cip.remainingMs)}`, cls: 'text-emerald-300' }
+        : { left: '⚪ SEM CIP', right: 'sem CIP registrado', cls: 'text-red-400/90' };
+
+  const stateBar = cipWashing
+    ? { dot: 'bg-sky-400', text: 'LAVAGEM CIP EM ANDAMENTO' }
+    : formActive
+      ? { dot: 'bg-violet-400', text: `FORMULANDO — ${refProductName} ${Math.floor(formPct * 100)}%` }
+      : isRunning
+        ? { dot: 'bg-green-400', text: `EM ENVASE — ${(machineIds || []).join(' + ') || '—'}` }
+        : isEmpty
+          ? { dot: 'bg-red-400', text: 'VAZIO — AGUARDANDO ABASTECIMENTO' }
+          : isLow
+            ? { dot: 'bg-red-400', text: 'NÍVEL BAIXO — ABASTECER EM BREVE' }
+            : { dot: 'bg-slate-400', text: 'DISPONÍVEL — MÁQUINA PARADA' };
+
+  const fillBody = (top, height, color) => (
+    <>
+      <rect
+        x={INNER.left}
+        y={top}
+        width={INNER_W}
+        height={height}
+        fill={color}
+        style={{ transition: 'fill 0.6s ease, y 1s linear, height 1s linear' }}
+      />
+      <rect
+        x={INNER.left}
+        y={top}
+        width={INNER_W}
+        height={height}
+        fill={`url(#shade${id})`}
+        style={{ transition: 'y 1s linear, height 1s linear' }}
+      />
+      <rect
+        x={INNER.left}
+        y={top}
+        width={INNER_W}
+        height={height}
+        fill={`url(#edge${id})`}
+        style={{ transition: 'y 1s linear, height 1s linear' }}
+      />
+      <rect
+        x={INNER.left}
+        y={top}
+        width={INNER_W}
+        height={Math.min(26, height)}
+        fill={`url(#topGlow${id})`}
+        style={{ transition: 'y 1s linear, height 1s linear' }}
+      />
+      {/* Superfície chapada com brilho (estilo tanque inox) */}
+      <rect
+        x={INNER.left + 3}
+        y={top - 1}
+        width={INNER_W - 6}
+        height={2.5}
+        rx={1.25}
+        fill="#ffffff"
+        opacity={0.55}
+        className="animate-pulse"
+      />
+      <ellipse cx={90} cy={top} rx={28} ry={3} fill="#ffffff" opacity={0.22} />
+    </>
+  );
 
   return (
     <div className={`relative flex flex-col items-center gap-3 sm:gap-4 glass-panel p-4 sm:p-6 min-w-0 w-full flex-1 transition-shadow duration-300 ${isLow ? 'ring-2 ring-red-500/80 shadow-[0_0_45px_rgba(239,68,68,0.35)]' : ''} ${cipWashing ? 'ring-2 ring-sky-400/80 shadow-[0_0_45px_rgba(56,189,248,0.35)]' : ''}`}>
-      <div className="w-full text-center mb-2">
-        <h3 className="text-xl font-bold text-white tracking-tight">{name}</h3>
-        <p className="text-slate-400 text-sm mt-1">Capacidade: {capacity.toLocaleString('pt-BR')} L</p>
+      {/* Cabeçalho estilo supervisório */}
+      <div className="w-full">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-medium tracking-widest text-slate-500">UNIDADE TRIÂNGULO</p>
+            <h3 className="text-xl font-bold text-white tracking-tight">{name}</h3>
+          </div>
+          <span className={`mt-1 px-3 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 shrink-0 ${status.cls}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            {status.label}
+          </span>
+        </div>
         <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60">
           <span
             className="w-4 h-4 rounded-full border border-white/30 shrink-0"
@@ -119,7 +198,7 @@ const Balloon = ({
             {product.name}
           </span>
         </div>
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] text-slate-500">🔧</span>
           {(machineIds || []).length > 0 ? (
             (machineIds || []).map((mid) => (
@@ -138,6 +217,12 @@ const Balloon = ({
             <span className="text-[11px] text-slate-500">nenhuma máquina</span>
           )}
         </div>
+        {cipStrip && (
+          <div className="mt-2 flex items-center justify-between gap-2 px-1">
+            <span className={`text-xs font-bold ${cipStrip.cls}`}>{cipStrip.left}</span>
+            <span className="text-[11px] text-slate-500">{cipStrip.right}</span>
+          </div>
+        )}
       </div>
 
       {/* Giroflex de alerta — aceso e piscando em nível baixo */}
@@ -160,12 +245,19 @@ const Balloon = ({
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
-            <linearGradient id={`sheen${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.16" />
-              <stop offset="15%" stopColor="#ffffff" stopOpacity="0.03" />
-              <stop offset="50%" stopColor="#ffffff" stopOpacity="0" />
-              <stop offset="85%" stopColor="#ffffff" stopOpacity="0.05" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.14" />
+            <linearGradient id={`steel${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#3b4252" />
+              <stop offset="12%" stopColor="#7d8aa0" />
+              <stop offset="28%" stopColor="#d7dee8" />
+              <stop offset="42%" stopColor="#ffffff" />
+              <stop offset="58%" stopColor="#c3ccd8" />
+              <stop offset="78%" stopColor="#6b7688" />
+              <stop offset="100%" stopColor="#2f3642" />
+            </linearGradient>
+            <linearGradient id={`lidV${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f1f5f9" />
+              <stop offset="55%" stopColor="#94a3b8" />
+              <stop offset="100%" stopColor="#475569" />
             </linearGradient>
             <linearGradient id={`shade${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#000000" stopOpacity="0" />
@@ -182,7 +274,6 @@ const Balloon = ({
               <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
-            {/* Prata metálico do estado VAZIO (todo prata, nunca branco) */}
             <linearGradient id={`silver${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#f1f5f9" />
               <stop offset="25%" stopColor="#cbd5e1" />
@@ -195,122 +286,36 @@ const Balloon = ({
             </clipPath>
           </defs>
 
-          {/* Fundo do vidro */}
-          <path
-            d={GLASS_PATH}
-            fill="rgba(148,163,184,0.12)"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth="1"
-          />
+          {/* Tampa + gargalo inox */}
+          <rect x={72} y={40} width={16} height={28} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.25)" />
+          <rect x={62} y={28} width={36} height={13} rx={3} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.3)" />
+          <ellipse cx={80} cy={28} rx={18} ry={5} fill="#f1f5f9" opacity={0.85} />
+          <rect x={72} y={60} width={16} height={7} fill="#000000" opacity={0.3} />
 
-          {/* VAZIO = TODO PRATA (metálico, nunca branco) — some na formulação */}
+          {/* Corpo inox */}
+          <path d={TANK_PATH} fill={`url(#steel${id})`} />
+          <path d={TANK_PATH} fill={`url(#shade${id})`} />
+          {/* Faixa de brilho vertical (reflexo) */}
+          <rect x={62} y={96} width={11} height={360} rx={5.5} fill="#ffffff" opacity={0.22} />
+          <rect x={108} y={110} width={5} height={320} rx={2.5} fill="#ffffff" opacity={0.12} />
+
+          {/* VAZIO = TODO PRATA (metálico, nunca branco) */}
           {!formActive && isEmpty && (
             <g clipPath={`url(#innerClip${id})`}>
-              <rect
-                x={INNER.left}
-                y={INNER.top}
-                width={INNER_W}
-                height={INNER_H}
-                fill={`url(#silver${id})`}
-              />
-              <rect
-                x={INNER.left}
-                y={INNER.top}
-                width={INNER_W}
-                height={INNER_H}
-                fill={`url(#edge${id})`}
-              />
-              <rect
-                x={INNER.left + 9}
-                y={INNER.top}
-                width={10}
-                height={INNER_H}
-                rx={5}
-                fill="#ffffff"
-                opacity={0.25}
-              />
+              <rect x={INNER.left} y={INNER.top} width={INNER_W} height={INNER_H} fill={`url(#silver${id})`} />
+              <rect x={INNER.left} y={INNER.top} width={INNER_W} height={INNER_H} fill={`url(#edge${id})`} />
               {!cipWashing && (
-                <text
-                  x={80}
-                  y={280}
-                  textAnchor="middle"
-                  fill="#475569"
-                  fontSize="17"
-                  fontWeight={700}
-                  fontFamily="monospace"
-                  letterSpacing={3}
-                >
+                <text x={90} y={290} textAnchor="middle" fill="#475569" fontSize={17} fontWeight={700} fontFamily="monospace" letterSpacing={3}>
                   VAZIO
                 </text>
               )}
             </g>
           )}
 
-          {/* Líquido — sempre recortado para dentro do vidro */}
-          {hasLiquid && (
+          {/* Líquido do envase */}
+          {hasLiquid && liquidHeight > 0 && (
             <g clipPath={`url(#innerClip${id})`}>
-              {/* Corpo do líquido (transição de 1s p/ animar suave entre os ticks) */}
-              <rect
-                x={INNER.left}
-                y={liquidTop}
-                width={INNER_W}
-                height={liquidHeight}
-                fill={product.color}
-                style={{ transition: 'fill 0.6s ease, y 1s linear, height 1s linear' }}
-              />
-              {/* Sombra inferior (profundidade) */}
-              <rect
-                x={INNER.left}
-                y={liquidTop}
-                width={INNER_W}
-                height={liquidHeight}
-                fill={`url(#shade${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              {/* Sombra nas bordas (efeito arredondado) */}
-              <rect
-                x={INNER.left}
-                y={liquidTop}
-                width={INNER_W}
-                height={liquidHeight}
-                fill={`url(#edge${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              {/* Brilho sob a superfície */}
-              <rect
-                x={INNER.left}
-                y={liquidTop}
-                width={INNER_W}
-                height={Math.min(30, liquidHeight)}
-                fill={`url(#topGlow${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              {/* Reflexo vertical esquerdo */}
-              <rect
-                x={INNER.left + 9}
-                y={liquidTop}
-                width={10}
-                height={liquidHeight}
-                rx={5}
-                fill="#ffffff"
-                opacity={0.14}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-
-              {/* Onda da superfície (oscila em torno do centro, sem deslocar) */}
-              <g className="animate-liquid-wave">
-                <path d={waveD} fill="#ffffff" opacity={0.22} />
-                <ellipse
-                  cx={80}
-                  cy={liquidTop}
-                  rx={38}
-                  ry={4.5}
-                  fill="#ffffff"
-                  opacity={0.25}
-                />
-              </g>
-
-              {/* Bolhas subindo */}
+              {fillBody(liquidTop, liquidHeight, product.color)}
               {BUBBLES.map((b, i) => (
                 <circle
                   key={`bubble-${i}`}
@@ -325,61 +330,10 @@ const Balloon = ({
             </g>
           )}
 
-          {/* FORMULAÇÃO: fill proporcional à meta (cor do produto escolhido) */}
+          {/* FORMULAÇÃO: fill proporcional à meta (cor escolhida) */}
           {formActive && formHeight > 0 && (
             <g clipPath={`url(#innerClip${id})`}>
-              <rect
-                x={INNER.left}
-                y={formTop}
-                width={INNER_W}
-                height={formHeight}
-                fill={refColor}
-                style={{ transition: 'fill 0.6s ease, y 1s linear, height 1s linear' }}
-              />
-              <rect
-                x={INNER.left}
-                y={formTop}
-                width={INNER_W}
-                height={formHeight}
-                fill={`url(#shade${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              <rect
-                x={INNER.left}
-                y={formTop}
-                width={INNER_W}
-                height={formHeight}
-                fill={`url(#edge${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              <rect
-                x={INNER.left}
-                y={formTop}
-                width={INNER_W}
-                height={Math.min(30, formHeight)}
-                fill={`url(#topGlow${id})`}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              <rect
-                x={INNER.left + 9}
-                y={formTop}
-                width={10}
-                height={formHeight}
-                rx={5}
-                fill="#ffffff"
-                opacity={0.14}
-                style={{ transition: 'y 1s linear, height 1s linear' }}
-              />
-              <g className="animate-liquid-wave">
-                <ellipse
-                  cx={80}
-                  cy={formTop}
-                  rx={38}
-                  ry={4.5}
-                  fill="#ffffff"
-                  opacity={0.25}
-                />
-              </g>
+              {fillBody(formTop, formHeight, refColor)}
               {BUBBLES.map((b, i) => (
                 <circle
                   key={`form-bubble-${i}`}
@@ -394,60 +348,33 @@ const Balloon = ({
             </g>
           )}
 
-          {/* Frente do vidro: brilho + reflexos por cima do líquido */}
-          <path d={GLASS_PATH} fill={`url(#sheen${id})`} />
-          <path
-            d={GLASS_PATH}
-            fill="none"
-            stroke="rgba(255,255,255,0.28)"
-            strokeWidth="2"
-          />
-          <rect x={40} y={90} width={12} height={340} rx={6} fill="#ffffff" opacity={0.1} />
-          <rect x={110} y={120} width={6} height={280} rx={3} fill="#ffffff" opacity={0.07} />
+          {/* Borda do tanque */}
+          <path d={TANK_PATH} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={2} />
 
-          {/* Gargalo */}
-          <rect x={68} y={16} width={24} height={34} rx={3} fill="#334155" stroke="rgba(255,255,255,0.25)" />
-          <rect x={60} y={44} width={40} height={9} rx={2} fill="#475569" stroke="rgba(255,255,255,0.2)" />
-
-          {/* Régua lateral */}
+          {/* Régua: litros (esq) + % (dir) */}
           <g>
-            <line x1={166} y1={55} x2={166} y2={495} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5,5" />
-            {rulerTicks.map(t => (
-              <g key={t.percent}>
-                <line
-                  x1={166}
-                  y1={t.y}
-                  x2={176}
-                  y2={t.y}
-                  stroke="rgba(255,255,255,0.6)"
-                  strokeWidth={t.percent % 20 === 0 ? 2 : 1}
-                />
-                <text
-                  x={182}
-                  y={t.y - 1}
-                  fill="rgba(255,255,255,0.75)"
-                  fontSize="11"
-                  fontFamily="monospace"
-                  fontWeight={600}
-                >
-                  {t.value.toLocaleString('pt-BR')} L
-                </text>
-                <text
-                  x={182}
-                  y={t.y + 12}
-                  fill="rgba(148,163,184,0.9)"
-                  fontSize="9"
-                  fontFamily="monospace"
-                >
-                  {t.percent}%
-                </text>
-              </g>
-            ))}
+            {TIERS.map((p) => {
+              const y = rulerY(p);
+              const value = Math.round((capacity * p) / 100);
+              return (
+                <g key={p}>
+                  <line x1={44} y1={y} x2={52} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                  <text x={40} y={y + 3.5} fill="#cbd5e1" fontSize={9} fontFamily="monospace" fontWeight={600} textAnchor="end">
+                    {value.toLocaleString('pt-BR')}
+                  </text>
+                  <line x1={140} y1={70} x2={140} y2={486} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="5,5" opacity={p === 100 ? 1 : 0} />
+                  <line x1={140} y1={y} x2={148} y2={y} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                  <text x={152} y={y + 3.5} fill="#94a3b8" fontSize={9} fontFamily="monospace">
+                    {p} %
+                  </text>
+                </g>
+              );
+            })}
           </g>
         </svg>
         {/* Lavagem CIP: spray ball 360° sobre o balão vazio */}
         {cipWashing && <SprayBall360 />}
-        {/* Formulação: cano no topo + produto descendo (cor do Balão 03) */}
+        {/* Formulação: cano no topo + produto descendo */}
         {formActive && (
           <div className="spray360" aria-hidden="true">
             <div className="form-pipe" />
@@ -474,21 +401,23 @@ const Balloon = ({
         </div>
       </div>
 
-      <div className="w-full flex items-center justify-between gap-2 pt-2 border-t border-slate-700/30">
-        <div className="flex-1 text-left min-w-0">
-          <p className="text-xs text-slate-500 uppercase tracking-wider">Volume Atual</p>
-          <p className="text-xl sm:text-2xl font-bold font-mono text-white tabular-nums truncate">
-            {isEmpty ? 'VAZIO' : `${currentVolume.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`}
-          </p>
-        </div>
-        <div className="flex-1 text-right min-w-0">
-          <p className="text-xs text-slate-500 uppercase tracking-wider">Nível</p>
-          <p className="text-xl sm:text-2xl font-bold font-mono text-white tabular-nums truncate">
-            {isEmpty ? '0%' : `${percentage.toFixed(1)}%`}
-          </p>
-        </div>
+      {/* Caixa de valor sobre a base do tanque */}
+      <div className="w-3/4 -mt-12 relative z-10 mx-auto text-center px-4 py-2 rounded-xl bg-slate-950/90 border border-slate-700/60 shadow-xl">
+        <p className="text-2xl font-bold font-mono text-white tabular-nums">
+          {isEmpty ? 'VAZIO' : `${fmtL1(currentVolume)} L`}
+        </p>
+        <p className="text-sm font-mono font-bold text-cyan-300 tabular-nums">
+          {isEmpty ? '0%' : `${percentage.toFixed(1)}%`}
+        </p>
       </div>
 
+      {/* Barra de estado */}
+      <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/40">
+        <span className={`w-1.5 h-1.5 rounded-full ${stateBar.dot} animate-pulse`} />
+        <span className="text-[11px] font-bold tracking-wider text-slate-300">{stateBar.text}</span>
+      </div>
+
+      {/* Nível (barra fina) */}
       <div className="w-full flex items-center gap-2">
         <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden relative">
           <motion.div
@@ -520,7 +449,58 @@ const Balloon = ({
         )}
       </div>
 
-      {/* Término previsto FIXO (horário de Brasília) — valor travado no PLAY */}
+      {/* Cronômetros da formulação (ao vivo; também aparece na leitura) */}
+      {formActive && (
+        <div className="w-full px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/25 tabular-nums">
+          {formulation.done ? (
+            <div className="text-center">
+              <p className="text-emerald-300 text-sm font-bold">✅ FORMULAÇÃO CONCLUÍDA</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Tempo total: <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-center text-violet-200 text-sm font-bold">
+                🧪 {(RECIPES.find((r) => r.id === formulation.recipe) || {}).name || 'Formulação'} · {refProductName}
+              </p>
+              <div className="mt-1.5 space-y-1 text-[11px]">
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Meta da receita:</span>
+                  <span className="font-mono font-bold text-white">{fmtL1(formTarget)} L</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Restam formular:</span>
+                  <span className="font-mono font-bold text-amber-300">{fmtL1(formRemaining)} L</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Tempo previsto:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Decorrido:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formElapsed)}</span>
+                </div>
+                <div className="flex justify-between gap-2 text-slate-400">
+                  <span>Restante:</span>
+                  <span className="font-mono font-bold text-white">{formatHMS(formTotal - formElapsed)}</span>
+                </div>
+              </div>
+              <div className="mt-1.5 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-1000 ease-linear"
+                  style={{ width: `${formPct * 100}%` }}
+                />
+              </div>
+              <p className="text-center text-xs font-mono font-bold text-white mt-1">
+                {Math.floor(formPct * 100)}%
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Término previsto FIXO (horário de Brasília) */}
       {!isEmpty && estimatedFinishAt && (
         <div className="w-full text-center px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
           <p className="text-cyan-200 text-sm font-medium tabular-nums">
@@ -583,57 +563,6 @@ const Balloon = ({
         </div>
       )}
 
-      {/* Cronômetros da formulação (ao vivo; também aparece na leitura) */}
-      {formActive && (
-        <div className="w-full px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/25 tabular-nums">
-          {formulation.done ? (
-            <div className="text-center">
-              <p className="text-emerald-300 text-sm font-bold">✅ FORMULAÇÃO CONCLUÍDA</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Tempo total: <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="text-center text-violet-200 text-sm font-bold">
-                🧪 {(RECIPES.find((r) => r.id === formulation.recipe) || {}).name || 'Formulação'} · {refProductName}
-              </p>
-              <div className="mt-1.5 space-y-1 text-[11px]">
-                <div className="flex justify-between gap-2 text-slate-400">
-                  <span>Meta da receita:</span>
-                  <span className="font-mono font-bold text-white">{fmtL1(formTarget)} L</span>
-                </div>
-                <div className="flex justify-between gap-2 text-slate-400">
-                  <span>Restam formular:</span>
-                  <span className="font-mono font-bold text-amber-300">{fmtL1(formRemaining)} L</span>
-                </div>
-                <div className="flex justify-between gap-2 text-slate-400">
-                  <span>Tempo previsto:</span>
-                  <span className="font-mono font-bold text-white">{formatHMS(formTotal)}</span>
-                </div>
-                <div className="flex justify-between gap-2 text-slate-400">
-                  <span>Decorrido:</span>
-                  <span className="font-mono font-bold text-white">{formatHMS(formElapsed)}</span>
-                </div>
-                <div className="flex justify-between gap-2 text-slate-400">
-                  <span>Restante:</span>
-                  <span className="font-mono font-bold text-white">{formatHMS(formTotal - formElapsed)}</span>
-                </div>
-              </div>
-              <div className="mt-1.5 h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-1000 ease-linear"
-                  style={{ width: `${formPct * 100}%` }}
-                />
-              </div>
-              <p className="text-center text-xs font-mono font-bold text-white mt-1">
-                {Math.floor(formPct * 100)}%
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
       <AnimatePresence>
         {isRunning && !isEmpty && (
           <motion.div
@@ -684,7 +613,7 @@ const Balloon = ({
               animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
               transition={{ duration: 1, repeat: Infinity }}
             />
-            🔴 VAZIO - Aguardando abastecimento
+            🔴 VAZIO — Aguardando abastecimento
           </motion.div>
         )}
         {isLow && (
@@ -696,7 +625,7 @@ const Balloon = ({
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-600/15 border border-red-500/40 text-red-300 text-sm font-bold tabular-nums"
           >
             <span className="w-2 h-2 bg-red-500 rounded-full animate-alarm" />
-            ⚠ NÍVEL BAIXO — restam {currentVolume.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L
+            ⚠ NÍVEL BAIXO — restam {fmtL1(currentVolume)} L
           </motion.div>
         )}
       </AnimatePresence>
