@@ -78,6 +78,11 @@ const Balloon = ({
   // Líquido do envase some quando a formulação assume o visual
   const hasLiquid = !formActive && hasLiquidEnvase;
   const fmtL1 = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  // Caixa de valor: na formulação mostra os litros SUBINDO (não o VAZIO parado)
+  const boxVolume = formActive ? formPct * formTarget : currentVolume;
+  const boxPct = formActive ? formFrac * 100 : percentage;
+  const boxEmpty = !formActive && isEmpty;
+  const barColor = formActive ? refColor : product.color;
 
   // Nível do envase
   const liquidTop = INNER.bottom - (INNER_H * percentage) / 100;
@@ -406,11 +411,11 @@ const Balloon = ({
 
       {/* Caixa de valor estilo painel HMI sobre a base do tanque */}
       <div className="w-3/4 -mt-12 relative z-10 mx-auto text-center px-4 py-2 rounded-lg bg-[#0a0f16] border border-slate-600/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_12px_rgba(0,0,0,0.5)]">
-        <p className="text-2xl font-bold font-mono tracking-wider text-slate-100 tabular-nums">
-          {isEmpty ? 'VAZIO' : `${fmtL1(currentVolume)} L`}
+        <p className="text-2xl font-bold font-mono text-white tabular-nums">
+          {boxEmpty ? 'VAZIO' : `${fmtL1(boxVolume)} L`}
         </p>
-        <p className="text-sm font-mono font-bold tracking-widest text-cyan-300 tabular-nums">
-          {isEmpty ? '0%' : `${percentage.toFixed(1)}%`}
+        <p className="text-sm font-mono font-bold text-cyan-300 tabular-nums">
+          {boxEmpty ? '0%' : `${boxPct.toFixed(1)}%`}
         </p>
       </div>
 
@@ -426,21 +431,21 @@ const Balloon = ({
           <motion.div
             className="h-full rounded-full relative overflow-hidden"
             style={{
-              background: product.isEmpty
+              background: boxEmpty
                 ? 'linear-gradient(90deg, transparent, transparent)'
-                : `linear-gradient(90deg, ${product.color}AA, ${product.color}, ${product.color}AA)`,
-              width: `${percentage}%`,
-              boxShadow: product.isEmpty ? 'none' : `0 0 20px ${product.glowColor}`,
+                : `linear-gradient(90deg, ${barColor}AA, ${barColor}, ${barColor}AA)`,
+              width: `${boxPct}%`,
+              boxShadow: boxEmpty ? 'none' : `0 0 20px ${formActive ? refColor : product.glowColor}`,
             }}
-            animate={{ width: `${percentage}%` }}
+            animate={{ width: `${boxPct}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
-            {!product.isEmpty && percentage > 10 && (
+            {!boxEmpty && boxPct > 10 && (
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-glow-pulse" />
             )}
           </motion.div>
         </div>
-        {isEmpty && (
+        {isEmpty && !formActive && (
           <motion.span
             className="px-3 py-1 bg-red-600/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30"
             initial={{ opacity: 0, scale: 0.8 }}
