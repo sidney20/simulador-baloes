@@ -253,21 +253,32 @@ const App = () => {
     cloudReadyRef.current = cloudReady;
   }, [cloudReady]);
 
-  // HEARTBEAT: reenvia o estado a cada 30s mesmo parado (aba visível).
-  // Elimina a janela "nuvem com zeros até alguém editar": no máximo 30s
-  // após qualquer divergência, a verdade do painel vence sozinha.
+  // HEARTBEAT + GATILHOS: reenvia o estado quase instantâneo mesmo parado.
+  // - a cada 5s com a aba visível (rede de segurança do tempo real);
+  // - ao voltar o foco, ao exibir a aba e ao reconectar (online).
+  // Respeita as guardas: virgem nunca apaga nuvem com dado.
   useEffect(() => {
     if (!isSupabaseEnabled) return;
-    const timer = setInterval(() => {
+    const fire = () => {
       if (document.hidden) return;
       if (!cloudReadyRef.current) return;
       const b = balloonsRef.current;
       const pristine = b.every(isPristineBalloon);
       if (!shouldPushRemote({ fetchOk: true, pristine, everDirty: everDirtyRef.current, remoteEmpty: remoteEmptyRef.current })) return;
-      if (Date.now() - lastPush.current < 25000) return;
+      if (Date.now() - lastPush.current < 4000) return;
       pushNow();
-    }, 30000);
-    return () => clearInterval(timer);
+    };
+    const timer = setInterval(fire, 5000);
+    const onVis = () => { if (!document.hidden) fire(); };
+    window.addEventListener('focus', fire);
+    window.addEventListener('online', fire);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', fire);
+      window.removeEventListener('online', fire);
+      document.removeEventListener('visibilitychange', onVis);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
