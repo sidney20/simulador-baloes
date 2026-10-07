@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCTS, LOW_LEVEL_THRESHOLD, RECIPES } from '../constants';
-import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS } from '../simulation';
+import { formatBrasiliaDateTime, cipStatus, formatCountdownFull, formatClockMS, flowRatePerHourForIds, machineFlowRate, percentOf, hasFormSession, formProgress, formElapsedMs, recipeDurationMs, formatHMS, fmtHM } from '../simulation';
 import SprayBall360 from './SprayBall360';
 
 // Geometria do tanque inox LARGO (viewBox 0 0 320 480) — estilo supervisório
