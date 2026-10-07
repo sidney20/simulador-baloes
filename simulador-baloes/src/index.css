@@ -211,20 +211,41 @@
   height: 0;
   animation: sprayRotate 16s linear infinite;
 }
-/* Cada filete: risco pontilhado de gotículas (só pisca, sem mexer no rotate) */
+/* Cada filete: risco BRILHANTE pontilhado de gotículas (só pisca, sem mexer no rotate) */
 .spray-jet {
   position: absolute;
-  left: -1.5px;
+  left: -2px;
   top: 10px;
-  width: 3px;
+  width: 4px;
   height: 170px;
   transform-origin: 50% 0;
-  border-radius: 2px;
+  border-radius: 3px;
   background:
-    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0 2px, rgba(255, 255, 255, 0) 2px 8px),
-    linear-gradient(to bottom, rgba(186, 230, 253, 0.5), rgba(56, 189, 248, 0.12));
-  box-shadow: 0 0 6px rgba(186, 230, 253, 0.7);
+    repeating-linear-gradient(to bottom, #ffffff 0 3px, rgba(255, 255, 255, 0) 3px 8px),
+    linear-gradient(to bottom, rgba(224, 242, 254, 0.85), rgba(56, 189, 248, 0.35) 60%, rgba(56, 189, 248, 0.08));
+  box-shadow: 0 0 10px rgba(186, 230, 253, 1), 0 0 22px rgba(56, 189, 248, 0.55);
   animation: jetFlicker 0.9s ease-in-out infinite;
+}
+/* Lençol de água batendo na parede e ESCORRENDO para baixo (fluxo animado) */
+.spray-sheet {
+  position: absolute;
+  top: 30%;
+  bottom: 2%;
+  width: 18px;
+  border-radius: 9px;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0 6px, rgba(255, 255, 255, 0.12) 6px 16px),
+    linear-gradient(to bottom, rgba(186, 230, 253, 0.35), rgba(186, 230, 253, 0.6));
+  box-shadow: 0 0 14px rgba(186, 230, 253, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
+  filter: blur(0.6px);
+  animation: sheetFlow 1.1s linear infinite;
+  opacity: 0.9;
+}
+.spray-sheet-l { left: 1%; }
+.spray-sheet-r { right: 1%; animation-delay: 0.5s; }
+@keyframes sheetFlow {
+  from { background-position-y: 0, 0; }
+  to { background-position-y: 32px, 0; }
 }
 /* Bola metálica com furinhos e aro brilhante */
 .spray-ball {
@@ -234,23 +255,23 @@
   width: 46px;
   height: 46px;
   border-radius: 9999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
   background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 1) 0 3px, rgba(255, 255, 255, 0) 6px),
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 1) 0 4px, rgba(255, 255, 255, 0) 7px),
     radial-gradient(rgba(2, 6, 16, 0.95) 2px, transparent 2.1px) 0 0 / 11px 11px,
-    radial-gradient(circle at 40% 35%, #e2e8f0, #64748b 55%, #0f172a 100%);
-  box-shadow: 0 0 20px rgba(186, 230, 253, 0.7), inset -4px -6px 10px rgba(0, 0, 0, 0.4);
+    radial-gradient(circle at 40% 35%, #f1f5f9, #94a3b8 55%, #1e293b 100%);
+  box-shadow: 0 0 28px rgba(186, 230, 253, 0.95), 0 0 60px rgba(56, 189, 248, 0.45), inset -4px -6px 10px rgba(0, 0, 0, 0.4);
   animation: ballSpin 9s linear infinite;
 }
 /* Trilhas de água escorrendo pela parede interna */
 .spray-drip {
   position: absolute;
   top: 34%;
-  width: 7px;
+  width: 8px;
   height: 60%;
   border-radius: 4px;
-  background: linear-gradient(to bottom, rgba(186, 230, 253, 0), rgba(186, 230, 253, 0.7) 30%, rgba(255, 255, 255, 0.9));
-  box-shadow: 0 0 8px rgba(186, 230, 253, 0.6);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75) 30%, #ffffff);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
   opacity: 0;
   animation: drip 2.4s linear infinite;
 }
@@ -276,7 +297,7 @@
   animation: emcipPulse 2.6s ease-in-out infinite;
 }
 @keyframes sprayRotate { to { transform: rotate(360deg); } }
-@keyframes jetFlicker { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.95; } }
+  @keyframes jetFlicker { 0%, 100% { opacity: 0.62; } 50% { opacity: 1; } }
 @keyframes ballSpin { to { transform: rotate(360deg); } }
 @keyframes drip {
   0% { transform: translateY(-20%); opacity: 0; }

@@ -31,6 +31,9 @@ const SprayBall360 = () => (
     {/* Bola com furinhos (gira devagar) */}
     <div className="spray-ball" />
 
+    {/* Lençóis de água batendo e escorrendo pelas paredes */}
+    <div className="spray-sheet spray-sheet-l" />
+    <div className="spray-sheet spray-sheet-r" />
     {/* Trilhas de água escorrendo pela parede interna */}
     <div className="spray-drip spray-drip-l1" />
     <div className="spray-drip spray-drip-l2" />
