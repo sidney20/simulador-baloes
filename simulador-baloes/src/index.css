@@ -366,13 +366,13 @@
 @keyframes emcipPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.85; } }
 
 /* ============ FORMULAÇÃO DO PRODUTO (cano + fluxo descendo) ============ */
-/* Cano de alimentação no topo, conectado ao balão */
+/* Cano de alimentação no topo, alinhado à tampa (mais curto e fino) */
 .form-pipe {
   position: absolute;
-  left: calc(50% - 7px);
+  left: calc(50% - 6px);
   top: -4%;
-  width: 14px;
-  height: 34%;
+  width: 12px;
+  height: 24%;
   border-radius: 5px;
   background: linear-gradient(90deg, #3f3f46, #a1a1aa 25%, #ffffff 50%, #a1a1aa 75%, #3f3f46);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);

@@ -91,7 +91,7 @@ const Balloon = ({
   const formTop = INNER.bottom - INNER_H * formFrac;
   const formHeight = Math.max(0, INNER.bottom - formTop);
   const formSurfaceBoxPct = 100 - formFrac * 100;
-  const formStreamH = Math.max(0, formSurfaceBoxPct - 31);
+  const formStreamH = Math.max(0, formSurfaceBoxPct - 23);
 
   // Pílula de status do cabeçalho
   const status = cipWashing
@@ -293,11 +293,11 @@ const Balloon = ({
             </clipPath>
           </defs>
 
-          {/* Tampa + gargalo inox */}
-          <rect x={150} y={44} width={20} height={48} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.25)" />
-          <rect x={138} y={30} width={44} height={14} rx={3} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.3)" />
-          <ellipse cx={160} cy={30} rx={22} ry={6} fill="#f1f5f9" opacity={0.85} />
-          <rect x={150} y={86} width={20} height={7} fill="#000000" opacity={0.3} />
+          {/* Tampa quase encostada: só um pescoço curto aparecendo */}
+          <rect x={151} y={46} width={18} height={26} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.25)" />
+          <rect x={140} y={34} width={40} height={12} rx={3} fill={`url(#lidV${id})`} stroke="rgba(255,255,255,0.3)" />
+          <ellipse cx={160} cy={34} rx={20} ry={5.5} fill="#f1f5f9" opacity={0.85} />
+          <rect x={151} y={66} width={18} height={6} fill="#000000" opacity={0.3} />
 
           {/* Corpo inox escovado fosco (sem brilho exagerado) */}
           <path d={TANK_PATH} fill={`url(#steel${id})`} />
@@ -391,7 +391,7 @@ const Balloon = ({
                 className="form-stream"
                 style={{
                   left: 'calc(50% - 5px)',
-                  top: '30%',
+                  top: '22%',
                   width: 10,
                   height: `${formStreamH}%`,
                   background: `repeating-linear-gradient(to bottom, ${refColor} 0 12px, ${refColor}66 12px 20px)`,
