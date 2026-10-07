@@ -228,22 +228,48 @@ const App = () => {
     // (Semeia zeros só se a nuvem também estiver vazia; esvaziar de propósito envia.)
     const pristine = balloons.every(isPristineBalloon);
     if (!shouldPushRemote({ fetchOk: true, pristine, everDirty: everDirtyRef.current, remoteEmpty: remoteEmptyRef.current })) return;
-    const doPush = () => {
-      lastPush.current = Date.now();
-      pushRemoteBalloons(balloonsRef.current)
-        .then((ok) => setCloudStatus({ state: ok ? 'ok' : 'error', at: Date.now() }))
-        .catch(() => setCloudStatus({ state: 'error', at: Date.now() }));
-    };
     if (Date.now() - lastPush.current >= 1000) {
-      doPush();
+      pushNow();
     } else {
       if (pushTimer.current) clearTimeout(pushTimer.current);
-      pushTimer.current = setTimeout(doPush, 1000 - (Date.now() - lastPush.current));
+      pushTimer.current = setTimeout(pushNow, 1000 - (Date.now() - lastPush.current));
     }
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
   }, [balloons, cloudReady]);
+
+  // Envio único (throttle por lastPush) — usado pelo efeito acima e pelo heartbeat
+  const pushNow = () => {
+    lastPush.current = Date.now();
+    pushRemoteBalloons(balloonsRef.current)
+      .then((ok) => setCloudStatus({ state: ok ? 'ok' : 'error', at: Date.now() }))
+      .catch(() => setCloudStatus({ state: 'error', at: Date.now() }));
+  };
+
+  // Espelho do gate p/ o heartbeat (refs não disparam re-render)
+  const cloudReadyRef = useRef(false);
+  useEffect(() => {
+    cloudReadyRef.current = cloudReady;
+  }, [cloudReady]);
+
+  // HEARTBEAT: reenvia o estado a cada 30s mesmo parado (aba visível).
+  // Elimina a janela "nuvem com zeros até alguém editar": no máximo 30s
+  // após qualquer divergência, a verdade do painel vence sozinha.
+  useEffect(() => {
+    if (!isSupabaseEnabled) return;
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      if (!cloudReadyRef.current) return;
+      const b = balloonsRef.current;
+      const pristine = b.every(isPristineBalloon);
+      if (!shouldPushRemote({ fetchOk: true, pristine, everDirty: everDirtyRef.current, remoteEmpty: remoteEmptyRef.current })) return;
+      if (Date.now() - lastPush.current < 25000) return;
+      pushNow();
+    }, 30000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const playAlertSound = useCallback(() => {
     if (!soundEnabled) return;
