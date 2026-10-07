@@ -42,6 +42,25 @@ export function toggleMachineIds(ids, mid) {
   return next.slice(-MAX_MACHINES_PER_BALLOON);
 }
 
+/**
+ * Mescla máquinas vindas de outro balão (troca automática) respeitando
+ * as regras: SIG-03 sempre sozinha, máx. 2 por balão, sem duplicar.
+ * Retorna a lista final (pode ser igual à base se nada couber).
+ */
+export function mergeMachineIds(base, incoming) {
+  let list = normalizeMachineIds(base);
+  for (const mid of incoming || []) {
+    const m = MACHINES.find((x) => x.id === mid);
+    if (!m || list.includes(mid)) continue;
+    if (m.solo) {
+      list = [mid];
+    } else {
+      list = [...list.filter((id) => id !== 'SIG-03'), mid].slice(-MAX_MACHINES_PER_BALLOON);
+    }
+  }
+  return list;
+}
+
 /** Normaliza seleção salva (ou migra contagem antiga 0/1/2 para nomes). */
 export function normalizeMachineIds(value) {
   const raw = Array.isArray(value)

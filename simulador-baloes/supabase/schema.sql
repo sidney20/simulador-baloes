@@ -13,6 +13,7 @@ create table if not exists public.tanks (
   current_level double precision not null default 0,
   initial_level double precision not null default 0,
   product_id text not null default 'vazio',
+  next_balloon_id int,
   machine_ids text[] not null default '{}',
   machine_flow jsonb not null default '{}',
   expected_accum double precision not null default 0,

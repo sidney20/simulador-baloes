@@ -45,6 +45,7 @@ const Balloon = ({
   cipWashing,
   cipWashStartAt,
   cipWashEndsAt,
+  nextBalloonName,
   formulation,
   refColor,
   refProductName,
@@ -232,13 +233,18 @@ const Balloon = ({
             <span className="text-[11px] text-slate-500">nenhuma máquina</span>
           )}
         </div>
+        {nextBalloonName && (
+          <p className="mt-1 text-[11px] font-medium text-violet-300/90">
+            🔀 Ao esvaziar → {nextBalloonName}
+          </p>
+        )}
+      </div>
         {cipStrip && (
           <div className="mt-2 flex items-center justify-between gap-2 px-1">
             <span className={`text-xs font-bold ${cipStrip.cls}`}>{cipStrip.left}</span>
             <span className="text-[11px] text-slate-500">{cipStrip.right}</span>
           </div>
         )}
-      </div>
 
       <div className="w-full flex justify-center">
         <div className="relative">

@@ -16,7 +16,7 @@ import ControlPanel from './components/ControlPanel';
 import Dashboard from './components/Dashboard';
 import ShareModal from './components/ShareModal';
 import PublicView from './components/PublicView';
-import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession, isPristineBalloon, shouldAdoptRemote, shouldPushRemote, resolveWashEnd, fmtHM, defaultWashWindow } from './simulation';
+import { calculateConsumptionForIds, calculateFixedEtaForIds, isCipValid, flowRatePerHourForIds, sanitizeMachineFlowMap, formElapsedMs, recipeDurationMs, hasFormSession, isPristineBalloon, shouldAdoptRemote, shouldPushRemote, resolveWashEnd, fmtHM, defaultWashWindow, applyAutoSwitch } from './simulation';
 import { isSupabaseEnabled } from './supabaseClient';
 import { fetchRemoteBalloons, pushRemoteBalloons } from './sync';
 import { 
@@ -65,6 +65,8 @@ const getInitialBalloons = () => BALLOON_CONFIG.map(b => ({
   cipWashEndsAt: null,
   // FORMULAÇÃO DO PRODUTO: receita + cronômetro próprio + produto a formular
   // (padrão = produto do Balão 03; pode escolher outro por balão)
+  // TROCA AUTOMÁTICA: nextBalloonId = p/ onde vão as máquinas ao esvaziar
+  nextBalloonId: null,
   formRecipe: null,
   formRunning: false,
   formStartAt: null,
@@ -134,6 +136,7 @@ const App = () => {
           cipWashEnd: /^\d{1,2}:\d{2}$/.test(s.cipWashEnd || '') ? s.cipWashEnd : defaultWashWindow().end,
           cipWashStartAt: typeof s.cipWashStartAt === 'number' ? s.cipWashStartAt : null,
           cipWashEndsAt: typeof s.cipWashEndsAt === 'number' ? s.cipWashEndsAt : null,
+          nextBalloonId: BALLOON_CONFIG.some(c => c.id === s.nextBalloonId && c.id !== cfg.id) ? s.nextBalloonId : null,
           formRecipe: s.formRecipe === 'grande' ? 'grande' : s.formRecipe === 'normal' ? 'normal' : null,
           formRunning: s.formRunning === true,
           formStartAt: typeof s.formStartAt === 'number' ? s.formStartAt : null,
@@ -390,8 +393,16 @@ const App = () => {
     showNotification(`${balloon?.name || 'Balão'} resetado para ${balloon.initialVolume.toLocaleString()} L`, 'info');
   };
 
+  const handleNextBalloon = (id, nextId) => {
+    const valid = BALLOON_CONFIG.some(c => c.id === nextId && c.id !== id) ? nextId : null;
+    updateBalloon(id, { nextBalloonId: valid });
+  };
+
   const handleEmpty = (id) => {
-    updateBalloon(id, {
+    const now = Date.now();
+    const target = balloons.find(b => b.id === id);
+    const finished = {
+      ...target,
       currentVolume: 0,
       initialVolume: 0,
       isRunning: false,
@@ -402,9 +413,20 @@ const App = () => {
       estimatedFinishAt: null,
       pausedAt: null,
       totalPausedMs: 0,
-    });
+    };
+    const base = balloons.map(b => (b.id === id ? finished : b));
+    // Se configurado, transfere as máquinas p/ o destino na hora
+    const { list, switched } = applyAutoSwitch(base, id, now);
+    setBalloons(list);
     playAlertSound();
-    showNotification(`${balloons.find(b => b.id === id)?.name || 'Balão'} esvaziado`, 'warning');
+    if (switched) {
+      showNotification(
+        `🔀 ${switched.fromName} esvaziou — ${switched.machines.join(' + ')} agora no ${switched.toName} (${switched.flow.toLocaleString('pt-BR')} L/h)`,
+        'success'
+      );
+    } else {
+      showNotification(`${target?.name || 'Balão'} esvaziado`, 'warning');
+    }
   };
 
   const handleVolumeChange = (id, volume) => {
@@ -917,14 +939,40 @@ const App = () => {
         return { ...balloon, currentVolume: newVolume, expectedAccum };
       });
 
+      // Troca automática: quem acabou de esvaziar e tem destino transfere
+      let finalNext = next;
+      const switchedInfos = [];
       if (changed) {
+        const emptiedIds = [];
         next.forEach((b, i) => {
+          if (b.currentVolume <= 0 && prev[i].currentVolume > 0 && b.nextBalloonId) {
+            emptiedIds.push(b.id);
+          }
+        });
+        for (const eid of emptiedIds) {
+          const r = applyAutoSwitch(finalNext, eid, now);
+          finalNext = r.list;
+          if (r.switched) switchedInfos.push(r.switched);
+        }
+      }
+
+      if (changed) {
+        const switchedIds = new Set(switchedInfos.map((s) => s.fromId));
+        finalNext.forEach((b, i) => {
+          const sw = switchedInfos.find((s) => s.fromId === b.id);
+          if (sw) {
+            liveRefs.current.playAlertSound();
+            liveRefs.current.showNotification(
+              `🔀 ${sw.fromName} esvaziou — ${sw.machines.join(' + ')} agora no ${sw.toName} (${sw.flow.toLocaleString('pt-BR')} L/h)`,
+              'success'
+            );
+          }
           if (noFlowIds.includes(b.id)) {
             liveRefs.current.showNotification('Sem vazão ativa — envase pausado', 'warning');
           } else if (cipExpiredIds.includes(b.id)) {
             liveRefs.current.playAlertSound();
             liveRefs.current.showNotification(`🛁 CIP venceu — ${b.name} pausado, realize o CIP para continuar`, 'warning');
-          } else if (b.currentVolume <= 0 && prev[i].currentVolume > 0) {
+          } else if (b.currentVolume <= 0 && prev[i].currentVolume > 0 && !switchedIds.has(b.id)) {
             liveRefs.current.playAlertSound();
             liveRefs.current.showNotification(`${b.name} esvaziou — aguardando abastecimento`, 'warning');
           } else if (
@@ -940,10 +988,10 @@ const App = () => {
             );
           }
         });
-        setBalloons(next);
+        setBalloons(finalNext);
       }
 
-      if (!next.some((b) => b.isRunning)) {
+      if (!finalNext.some((b) => b.isRunning)) {
         setIsRunning(false);
       }
     }, 1000);
@@ -1065,6 +1113,7 @@ const App = () => {
                 refColor={formProductOf(balloon)?.color || '#94a3b8'}
                 refProductName={formProductOf(balloon)?.name || '—'}
                 formTargetLiters={balloon.formTargetLiters}
+                nextBalloonName={balloons.find(b => b.id === balloon.nextBalloonId)?.name || null}
               />
               <ControlPanel
                 id={balloon.id}
@@ -1080,6 +1129,9 @@ const App = () => {
                 machineFlow={balloon.machineFlow}
                 onMachinePercent={(mid, p) => handleMachinePercentChange(balloon.id, mid, p)}
                 expectedAccum={balloon.expectedAccum}
+                nextBalloonId={balloon.nextBalloonId}
+                onNextBalloon={(nid) => handleNextBalloon(balloon.id, nid)}
+                switchOptions={balloons.filter(b => b.id !== balloon.id).map(b => ({ id: b.id, name: b.name, volume: b.currentVolume }))}
                 isRunning={balloon.isRunning}
                 isEmpty={balloon.currentVolume === 0 || balloon.productId === 'vazio'}
                 onPlay={() => handlePlay(balloon.id)}

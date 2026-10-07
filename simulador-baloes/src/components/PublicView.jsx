@@ -262,6 +262,7 @@ const PublicView = ({ token }) => {
                   cipWashing={b.cipWashing}
                   cipWashStartAt={b.cipWashStartAt ?? null}
                   cipWashEndsAt={b.cipWashEndsAt ?? null}
+                  nextBalloonName={(balloons || []).find((x) => x.id === b.nextBalloonId)?.name || null}
                   formulation={b.formRecipe ? { recipe: b.formRecipe, running: !!b.formRunning, startAt: b.formStartAt ?? null, accumMs: b.formAccumMs || 0, done: !!b.formDone } : null}
                   refColor={pubColorOf(b)}
                   refProductName={pubNameOf(b)}

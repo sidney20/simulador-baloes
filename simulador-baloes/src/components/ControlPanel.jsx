@@ -61,6 +61,9 @@ const ControlPanel = ({
   machineFlow,
   onMachinePercent,
   expectedAccum,
+  nextBalloonId,
+  onNextBalloon,
+  switchOptions,
   isRunning,
   isEmpty,
   onPlay,
@@ -417,6 +420,27 @@ const ControlPanel = ({
             <p className="text-[11px] text-slate-500">
               Capacidade estimada total do balão ({activeIds.length > 0 ? activeIds.join(' + ') : 'nenhuma'})
             </p>
+            <div className="mt-2 pt-2 border-t border-slate-700/50">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                🔀 Troca automática — quando acabar, ir para:
+              </label>
+              <select
+                value={nextBalloonId || ''}
+                onChange={(e) => onNextBalloon(e.target.value === '' ? null : Number(e.target.value))}
+                className="select-field"
+                disabled={locked}
+              >
+                <option value="">Nenhum (parar ao esvaziar)</option>
+                {(switchOptions || []).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name} ({Math.round(o.volume || 0).toLocaleString('pt-BR')} L)
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                As máquinas mudam sozinhas e o envase continua sem parar.
+              </p>
+            </div>
             {initialVolume > 0 && (
               <div className="mt-2 pt-2 border-t border-slate-700/50 text-xs tabular-nums">
                 <div className="flex flex-wrap justify-between gap-x-2 text-slate-400">

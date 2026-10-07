@@ -1,4 +1,4 @@
-import { MACHINES } from './constants.js';
+import { MACHINES, mergeMachineIds } from './constants.js';
 
 // ============================================================
 // Motor de cálculo da puxada — PRECISÃO ABSOLUTA
@@ -77,6 +77,73 @@ export function flowRatePerHourForIds(ids, percent = 100) {
  */
 export function calculateConsumptionForIds(ids, seconds, percent = 100) {
   return flowRatePerHourForIds(ids, percent) * (seconds / SECONDS_PER_HOUR);
+}
+
+/**
+ * TROCA AUTOMÁTICA: ao esvaziar, transfere as máquinas para o balão destino
+ * configurado (`nextBalloonId`) e já o inicia, preservando o % de cada máquina.
+ * Só troca se o destino estiver viável (parado, com volume, CIP válido, sem
+ * formulação). Nunca mexe no volume do destino — só nas máquinas.
+ * Retorna { list, switched } — switched null quando não trocou.
+ */
+export function applyAutoSwitch(list, finishedId, nowMs = Date.now()) {
+  const arr = Array.isArray(list) ? list : [];
+  const finished = arr.find((b) => b.id === finishedId);
+  if (!finished || (finished.currentVolume || 0) > 0 || finished.isRunning) {
+    return { list: arr, switched: null };
+  }
+  const srcMachines = (finished.machineIds || []).filter((id) => MACHINES.some((m) => m.id === id));
+  if (srcMachines.length === 0) return { list: arr, switched: null };
+  const dest = arr.find((b) => b.id === finished.nextBalloonId);
+  if (!dest || dest.id === finishedId) return { list: arr, switched: null };
+  if (dest.isRunning || dest.cipWashing) return { list: arr, switched: null };
+  if (!((dest.currentVolume || 0) > 0) || dest.productId === 'vazio') return { list: arr, switched: null };
+  if (!isCipValid(dest.cipDoneAt, dest.cipHours, nowMs)) return { list: arr, switched: null };
+  if (hasFormSession({ recipe: dest.formRecipe, running: dest.formRunning, startAt: dest.formStartAt, accumMs: dest.formAccumMs, done: dest.formDone })) {
+    return { list: arr, switched: null };
+  }
+  const merged = mergeMachineIds(dest.machineIds, srcMachines);
+  if (merged.length === 0) return { list: arr, switched: null };
+  // % de cada máquina: leva o da origem; senão o já configurado; senão 100
+  const srcFlow = finished.machineFlow && typeof finished.machineFlow === 'object' ? finished.machineFlow : {};
+  const destFlow = dest.machineFlow && typeof dest.machineFlow === 'object' ? dest.machineFlow : {};
+  const mf = {};
+  merged.forEach((mid) => {
+    const p = Number(srcFlow[mid]);
+    mf[mid] = Number.isFinite(p) ? Math.max(0, Math.min(100, p)) : (Number.isFinite(Number(destFlow[mid])) ? destFlow[mid] : 100);
+  });
+  const flow = flowRatePerHourForIds(merged, mf);
+  if (!(flow > 0)) return { list: arr, switched: null };
+  const next = arr.map((b) => {
+    if (b.id === finishedId) return { ...b, machineIds: [] };
+    if (b.id === dest.id) {
+      return {
+        ...b,
+        machineIds: merged,
+        machineFlow: mf,
+        isRunning: true,
+        initialVolume: b.currentVolume,
+        sessionStart: nowMs,
+        sessionAccum: 0,
+        expectedAccum: 0,
+        estimatedFinishAt: calculateFixedEtaForIds(b.currentVolume, merged, nowMs, mf),
+        totalPausedMs: (b.totalPausedMs || 0) + (b.pausedAt ? nowMs - b.pausedAt : 0),
+        pausedAt: null,
+      };
+    }
+    return b;
+  });
+  return {
+    list: next,
+    switched: {
+      fromId: finished.id,
+      toId: dest.id,
+      fromName: finished.name,
+      toName: dest.name,
+      machines: merged,
+      flow,
+    },
+  };
 }
 
 /**
