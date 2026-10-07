@@ -174,70 +174,72 @@
   pointer-events: none;
   user-select: none;
 }
-/* Tinta escura no interior p/ contraste dos jatos */
+/* Interior BEM escuro p/ os filetes saltarem (estilo referência) */
 .spray-tint {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(8, 47, 73, 0.55), rgba(8, 47, 73, 0.35) 50%, rgba(8, 47, 73, 0.55));
+  background: linear-gradient(to bottom, rgba(2, 12, 24, 0.78), rgba(2, 12, 24, 0.62) 50%, rgba(2, 12, 24, 0.78));
 }
 /* Névoa atrás da bola */
 .spray-mist {
   position: absolute;
   left: calc(50% - 70px);
-  top: calc(30% - 70px);
+  top: calc(40% - 70px);
   width: 140px;
   height: 140px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0) 70%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.35), rgba(56, 189, 248, 0) 70%);
   animation: jetFlicker 2.2s ease-in-out infinite;
 }
 /* Cano de inox vindo do topo até a bola */
 .spray-pipe {
   position: absolute;
-  left: calc(50% - 6px);
+  left: calc(50% - 4px);
   top: -2%;
-  width: 12px;
-  height: 32%;
-  border-radius: 5px;
+  width: 8px;
+  height: 44%;
+  border-radius: 4px;
   background: linear-gradient(90deg, #3f3f46, #a1a1aa 25%, #ffffff 50%, #a1a1aa 75%, #3f3f46);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
 }
-/* Grupo dos 12 jatos — gira devagar (360°) */
+/* Grupo dos 20 filetes — gira devagar (360°) */
 .spray-jets {
   position: absolute;
   left: 50%;
-  top: 30%;
+  top: 40%;
   width: 0;
   height: 0;
-  animation: sprayRotate 14s linear infinite;
+  animation: sprayRotate 16s linear infinite;
 }
-/* Cada jato: feixe de água saindo da bola em um ângulo (só pisca, sem mexer no rotate) */
+/* Cada filete: risco pontilhado de gotículas (só pisca, sem mexer no rotate) */
 .spray-jet {
   position: absolute;
-  left: -2px;
-  top: 8px;
-  width: 4px;
-  height: 94px;
+  left: -1.5px;
+  top: 10px;
+  width: 3px;
+  height: 170px;
   transform-origin: 50% 0;
-  border-radius: 3px;
-  background: linear-gradient(to bottom, #ffffff, rgba(186, 230, 253, 0.9) 35%, rgba(56, 189, 248, 0.45) 70%, rgba(56, 189, 248, 0.05));
-  box-shadow: 0 0 8px rgba(125, 211, 252, 0.9);
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0 2px, rgba(255, 255, 255, 0) 2px 8px),
+    linear-gradient(to bottom, rgba(186, 230, 253, 0.5), rgba(56, 189, 248, 0.12));
+  box-shadow: 0 0 6px rgba(186, 230, 253, 0.7);
   animation: jetFlicker 0.9s ease-in-out infinite;
 }
 /* Bola metálica com furinhos e aro brilhante */
 .spray-ball {
   position: absolute;
-  left: calc(50% - 25px);
-  top: calc(30% - 25px);
-  width: 50px;
-  height: 50px;
+  left: calc(50% - 23px);
+  top: calc(40% - 23px);
+  width: 46px;
+  height: 46px;
   border-radius: 9999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 1) 0 3px, rgba(255, 255, 255, 0) 6px),
-    radial-gradient(rgba(15, 23, 42, 0.95) 2px, transparent 2.1px) 0 0 / 11px 11px,
-    radial-gradient(circle at 40% 35%, #f8fafc, #94a3b8 55%, #1e293b 100%);
-  box-shadow: 0 0 20px rgba(186, 230, 253, 0.7), inset -4px -6px 10px rgba(0, 0, 0, 0.35);
+    radial-gradient(rgba(2, 6, 16, 0.95) 2px, transparent 2.1px) 0 0 / 11px 11px,
+    radial-gradient(circle at 40% 35%, #e2e8f0, #64748b 55%, #0f172a 100%);
+  box-shadow: 0 0 20px rgba(186, 230, 253, 0.7), inset -4px -6px 10px rgba(0, 0, 0, 0.4);
   animation: ballSpin 9s linear infinite;
 }
 /* Trilhas de água escorrendo pela parede interna */

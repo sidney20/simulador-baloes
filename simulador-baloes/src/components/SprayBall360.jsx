@@ -1,9 +1,9 @@
 'use client';
 
 // Spray ball 360° da lavagem CIP: cano de inox no topo, bola com furinhos,
-// 12 jatos em 360° batendo na parede interna + trilhas escorrendo + "EM CIP".
+// 20 filetes pontilhados em 360° batendo na parede interna + trilhas + "EM CIP".
 // O balão fica VAZIO durante a lavagem (só água nas paredes, sem enchimento).
-const JETS = 12;
+const JETS = 20;
 
 const SprayBall360 = () => (
   <div className="spray360" aria-hidden="true">
@@ -21,8 +21,8 @@ const SprayBall360 = () => (
           key={i}
           className="spray-jet"
           style={{
-            transform: `rotate(${i * 30}deg)`,
-            animationDelay: `${(i % 4) * 0.22}s`,
+            transform: `rotate(${i * 18}deg)`,
+            animationDelay: `${(i % 5) * 0.18}s`,
           }}
         />
       ))}
